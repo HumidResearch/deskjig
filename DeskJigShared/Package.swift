@@ -30,5 +30,11 @@ let package = Package(
             path: "Sources",
             swiftSettings: [.swiftLanguageMode(.v5), .unsafeFlags(["-strict-concurrency=targeted"])]
         ),
+        .testTarget(
+            name: "DeskJigSharedTests",
+            dependencies: ["DeskJigShared"],
+            path: "Tests",
+            swiftSettings: [.swiftLanguageMode(.v5), .unsafeFlags(["-strict-concurrency=targeted"])]
+        ),
     ]
 )

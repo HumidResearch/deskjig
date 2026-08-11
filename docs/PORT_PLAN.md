@@ -70,3 +70,39 @@ Four tranche branches — `t1-foundation`, `t3-managers-core`, `t4-managers-work
 - **`Managers/AXSubroleFiltering.swift` and `Managers/ManagedWindowLifecycleProbe.swift` not ported.** The manifest lists them as BSP *referencers* needing cut-edits, but each file is in its entirety an `extension BinaryPartitionLayoutCoordinator` — with BSP excluded there is nothing left to port, so both are dropped rather than reduced to empty stubs. t3 lands 10 files, not 12.
 
 Commercial fonts are gone with the rest of the bundled assets: `Branding+Fonts.swift` drops the `PPNeueCorp` and `BerkeleyMono` name tables (and `AppFontFamily.berkeleyMono`), leaving the system-font path. Expected UI impact: brand mono styles render in the system monospaced face, and display styles in SF — the type scale, line heights and tracking are unchanged. The removed `Font.brand(size:style:)` / `NSFont.brand*Font` helpers force-unwrapped `NSFont(name:)` and would have trapped at runtime without the licensed fonts installed; no caller in the package used them.
+
+### Wave 2 integration addendum (checkpoint B)
+
+`swift test --package-path DeskJigShared` runs **256 tests in 46 suites, green**, stable across repeated runs.
+
+**Tranche delivery.** As in Wave 1, tranches landed short: `w2-a-restoration` produced no commits at all and `w2-b-workspace` produced one uncommitted file, leaving 44 of the 58 Headless-whitelist suites unported. `w2-c-chrome-ax` (14 files) and `w2-d-launchers-cli` (12 files) delivered in full. The integrator ported the recoverable remainder directly from the reference `BentoTests` bundle rather than reopening the tranches. The transform is mechanical: `NexusShared` → `DeskJigShared`, `BentoLog` → `DeskJigLog`, and app-target imports (`@testable import Bento`) redirected at the package module. Whitelist coverage is now **41 of 58 suites**; the 17 absent are itemized below and every one has a reason.
+
+**The environment gate.** The old app-hosted bundle expressed the safe/unsafe split with Xcode test plans: `BentoTests-Headless.xctestplan` whitelisted what CI could run unattended, and everything outside it needed a logged-in session with Accessibility permission, running apps, a window server, Chrome, or tmux. SwiftPM has no test-plan concept, so the whitelist is carried into source. `Tests/TestEnvironment.swift` exposes `envTestsEnabled` (`DESKJIG_ENV_TESTS=1`); whitelisted suites run by default and every other suite carries `.enabled(if: TestEnvironment.envTestsEnabled, ...)` (XCTest suites use `try XCTSkipUnless` in `setUpWithError`). **The gated suites drive real windows and applications on the host — never run them on a machine whose desktop session matters.**
+
+Six gated suites:
+
+| Suite | Why gated |
+|---|---|
+| `FluentAPIIntegrationTests` | Drives real windows/apps ("REAL SYSTEM"); keeps its `.serialized` trait |
+| `ChromeExtensionSetupManagerNativeHostStatusTests` | Exercises `ChromeExtensionSetupManager.shared` against real native-host manifest locations |
+| `ChromeNativeMessagingServiceTimeoutTests` | Real socket I/O with wall-clock timeout assertions; flaky off a quiescent machine |
+| `WindowLookupWindowDictionaryTests` | Queries the live `CGWindowList`; `candidatesChecked` is machine-dependent |
+| `CLIAppAliasCodexTests` | Spawns the `bentoctl` executable (see below) |
+| `WorkspaceCreateFromSpecCommandTests` | Spawns the `bentoctl` executable (see below) |
+
+The last two are a **discrepancy against the old CLI plan**, not a port defect. `BentoTests-CLI.xctestplan` ran its five suites headlessly because `bentoctl` sat next to the app-hosted test bundle at `Contents/MacOS/bentoctl`. The SwiftPM lane has no host app and does not build `bentoctl` (that is Wave 3), so both suites failed with *"The file `bentoctl` doesn't exist"* — an environment dependency, so they move to the gated set. `bentoctlURL()` now honors a `DESKJIG_BENTOCTL` path override so the gate stays satisfiable. The other three CLI-plan suites (`FluentLauncherFactoryCodexTests`, `OpenByPathMatcherCodexTests`, `FluentXcodeLauncherMatcherTests`) are pure logic and stay ungated. All five keep `.serialized`, matching the isolation the separate CLI lane implied.
+
+`WorkspaceCreateFromSpecCommandTests/presetAndExplicitLayoutsRoundTrip` stays disabled: `BentoTests-Full.xctestplan` listed it in `skippedTests`, and with no test plans that skip becomes an inline `.disabled(...)`.
+
+**Test deletions — API this port never carries** (per the Wave 1 exclusions above):
+
+- Auth: `AuthenticationManagerSignupNotificationTests`, `LoginViewModelTests`
+- Cloud sync: `WorkspaceSyncManagerMergeTests`
+- BSP/snapping: `BinaryPartitionLayoutCoordinatorTests` (with its nested `BinaryPartitionSnappingHandoffTests` and `BinaryPartitionLayoutCoordinatorLiveWindowManagerTests`), `WindowSnappingFeatureControlTests`, `EdgeSnapZoneResolverTests`
+- `BentoLogTests`: the `LogSubsystem.windowBSP` assertions and `testTraceFileWriterCapturesBspLogs`, which covered BSP trace routing removed from `TraceFileWriter` in t1
+
+**Deferred to Wave 4 — app-target (`Nexus/`) code, not package code.** These are not deletions; they belong to the app target's own test lane and should be revived there: `AgentHookInstallerTests` (`AgentHookInstaller` lives in `Nexus/Model/BentoCLIInstaller.swift`), `AppDelegateQuickSwitchChromeInjectionTests`, `BentoTests` (`LoggingController`, `TelemetryPermissionController`), `LoggingConfigurationVerboseSinkTests`, `InlineScreenSelectionStateTests`, `QuickSwitchViewModelTests`, `SingleInstanceGuardSelectionTests`, `WorkspaceDraftViewModelTests`, `WorkspaceLaunchSourcePolicyTests`, and the single `urlHandoffScreenGeometryUsesPrimaryDisplayAnchor` test inside `WorkspaceDisplayTopologyTests` (`URLHandoffScreenGeometry` lives in `Nexus/App/AppDelegate.swift`).
+
+**Seam fixes.** Tranches C and D both shipped `MockAXWindowEnumerator` — C in the shared `Tests/MockAXWindowService.swift`, D inline in `TerminalSupplementationServiceInjectionTests.swift`. The two copies were byte-identical; the inline one is gone and the shared file is the single copy, matching the upstream layout. All four tranches added an identical `testTarget` stanza to `Package.swift`, which merged to one copy without conflict.
+
+**No `Sources/` changes were needed** — every failure traced to the test port or the environment, none to Wave 1 source behavior.
