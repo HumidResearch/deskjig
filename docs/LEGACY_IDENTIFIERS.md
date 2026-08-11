@@ -4,7 +4,7 @@ DeskJig deliberately retains these identifiers from its commercial predecessor (
 
 | Identifier | Where | Why it stays |
 |---|---|---|
-| `com.mscontrol.bento` (app bundle id) | project build settings, entitlements, defaults suite | Anchors Accessibility/Screen-Recording/AppleEvents TCC grants, the `UserDefaults` domain holding saved workspaces, keychain access group, URL-scheme registration, and Sparkle update identity. |
+| `com.mscontrol.bento` (app bundle id) | project build settings, entitlements, defaults suite | Anchors Accessibility/Screen-Recording/AppleEvents TCC grants, the `UserDefaults` domain holding saved workspaces, URL-scheme registration, and Sparkle update identity. |
 | `com.mscontrol.bento.bentoctl-helper` | privileged-helper label (SMJobBless), mach-lookup entitlement | Must match any already-installed helper at `/Library/PrivilegedHelperTools/…`. (Helper not in M1; register kept for its return.) |
 | `com.mscontrol.bentoctl` | CLI bundle id | CLI identity continuity. |
 | `bento://` URL scheme | Info.plist, URL handlers, CLI `app open-url` | Registered with LaunchServices on existing installs; scripts and saved automations use it. |
@@ -21,3 +21,9 @@ DeskJig deliberately retains these identifiers from its commercial predecessor (
 | `com.bento.native` native-messaging host id | Chrome extension pairing | Only if the extension ships; a renamed host id breaks every installed copy of the published extension. New listing = new id + re-pair flow, together. |
 
 Everything not on this list renames to DeskJig at port time.
+
+**Dropped, not carried:** the upstream `keychain-access-groups` entitlement
+(`$(AppIdentifierPrefix)com.mscontrol.bento`) existed only for account/auth credential storage,
+which DeskJig does not port. Nothing in the codebase touches the keychain, and carrying the
+entitlement forces development-certificate signing (ad-hoc builds fail with "requires a
+provisioning profile"). Removed in Wave 4.

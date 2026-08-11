@@ -137,3 +137,127 @@ The last two are a **discrepancy against the old CLI plan**, not a port defect. 
 **Binary name and compat.** The product is `deskjig`; `install` creates `/usr/local/bin/deskjig` only. LEGACY_IDENTIFIERS.md states DeskJig "ships `deskjig` and maintains a `bentoctl` compat symlink" — that second symlink does not exist in the ported `InstallCommand`. Left alone deliberately: `install` resolves a bundled binary inside `DeskJig.app` and cannot be exercised until Wave 4 ships the app bundle, so the compat symlink is a Wave 4/5 item, tracked here so it is not lost.
 
 **CLI↔app data contract is already live (checkpoint G preview).** `deskjig workspace list --format json` exits 0 against the legacy `UserDefaults(suiteName: "com.mscontrol.bento")` / `SavedWorkspaces` store and reads existing Bento workspaces unchanged — no migration, exactly as the register intends. It needs no Accessibility grant (it is a pure defaults read), so it is not a checkpoint-H-style AX exercise.
+
+## Wave 4 tranche manifests (app: 208 source files → 169 ported, 39 excluded)
+
+Scope of the count: everything under `Nexus/` (203 `.swift`) plus `BentoNativeHost/` (5 `.swift`). 39 files are cut, 169 are ported and partitioned into 8 disjoint tranches. Non-Swift app inputs (`Config/Info.plist`, `Nexus/Configs/*.xcconfig`, `Nexus/Nexus.entitlements`, `Nexus/Configurations/menu-*.json`, `Nexus/BentoLoadingIndicator.lottie`, `Nexus/Assets.xcassets`) ride with the tranche that owns their consumer; the app `.xcodeproj`, target settings, signing identity, and asset catalog wiring are integrator-owned.
+
+**Excluded from the app target (never ported), 39:**
+
+- `App/` (11): `GatewayURLProvider`, `GatewayLoggingConfiguration`, `GatewayLogClient`, `GatewaySentryForwarder`, `SentryLogger`, `BetterStackLogger`, `TelemetryPermissionController`, `NotificationService`, `CognitoAuthorizationClient`, `CLISessionBroker`, `CLISessionServer`.
+- `App/Startup/` (2): `StartupTelemetryCoordinator`, `EarlyStartupCoordinator` (replaced inline in `AppDelegate.performStartupInitialization`).
+- `UI/Authentication/` (9): all.
+- `UI/Subscription/` (8 of 9): `SubscriptionManager`, `SubscriptionProvider`, `SubscriptionView`, `SubscriptionSuccessView`, `UnpaidUserView`, `ValidationFailedView`, `ValidationLoadingView`, `TrialLimitModal`. **`UpgradeBadge.swift` relocates** to `UI/SettingsComponents/` (tranche c) — 3 surviving consumers, and in `SettingsSidebar` it is already the *Sparkle update* badge.
+- Other (7): `Model/LoginViewModel`, `Services/AuthenticationManagerAuthProvider` (directory disappears), `UI/LimitedSettingsView` (its `openLogsFolder()` at :433 is byte-identical to `SettingsScreen`'s at :1324 — verified, so the file drops with nothing to salvage), `UI/PSWorkspaceView` (orphaned), `UI/ViewModifiers/EmailVerificationRefreshModifier` (orphaned), `UI/SettingsUI/AddonsView` (Pro Tools store), `UI/SnapshotViewer/UsersDetailView` (Firestore user doc + admin panel).
+- `CLIHelper/` (2): `BentoCLIBlessHelper`, `BentoCLIBlessHelperProtocol` — **M1 decision: no privileged-helper target.** This is a Wave-4 cut, not an e1 §2.27 edit; the helper (and its `-Info.plist` / `-Launchd.plist`) returns in M2.
+
+| Tranche | Scope | Files |
+|---|---|---:|
+| a-app-core | `App/` survivors: `BentoApp`→`DeskJigApp`, `AppDelegate`, `LoggingController`, `AppURLHelper`, `SingleInstanceGuard`, `Debug/GUIRestoreParityRunner`; owns `Config/Info.plist` + `Configs/*.xcconfig` + entitlements edits | 6 |
+| b-model | `Model/` survivors minus onboarding/permissions/chrome VMs, plus `Extensions/`; `WorkspaceViewModel` Sentry cut; `BentoCLIInstaller` de-privileged | 13 |
+| c-settings-core | `SettingsScreen`, `SettingsSidebar`, `BentoContentView`→`DeskJigContentView`, `MenuBarView`, `QuickSwitchView(+Settings)`, Sparkle controller + 2 delegates, relocated `UpgradeBadge` | 10 |
+| d-settings-rest | remaining `SettingsUI` + `SettingsComponents` + `ChromeExtension` (+ its VM) + `NotificationPresenter` + `URLHandoff` + `ViewModifiers` + `Animations+Transitions` | 40 |
+| e-designsystem | `UI/DesignSystem` (DS* component library) | 33 |
+| f-actionpanel-rootui | `UI/ActionPanel` (+`WorkspaceEditor`) + `UI/` root survivors + onboarding/permissions VMs and overlays | 40 |
+| g-snapshotviewer | `UI/SnapshotViewer` minus `UsersDetailView` | 22 |
+| h-nativehost | `BentoNativeHost/` → `DeskJigNativeHost/` package, executable product name kept `BentoNativeHost` | 5 |
+
+**Wave-4 cross-tranche contracts:**
+
+- **Auth wall collapse (a).** `BentoApp.swift:803-816` becomes `if windowManager.shouldShowPermissionsScreen { PermissionsView() } else { DeskJigContentView(…) }`. `PermissionsView` ships in f, `DeskJigContentView` in c — a builds against both.
+- **`UpgradeBadge` relocation (c).** File moves out of `UI/Subscription/` into `UI/SettingsComponents/`; only the Sparkle update-available meaning survives. Consumers: `SettingsScreen:777`, `SettingsSidebar:268`, `BentoContentView:476` — all in c.
+- **`TutorialProgressStore` (b, d, f).** Wave 1 replaced `TutorialSyncManager` with a local `TutorialProgressStore` in `DeskJigShared`. Consumers are `SimpleOnboardingViewModel:35/:50/:119` and `OnboardingTutorialViewModel:40/:55/:90` (f) and `ChromeExtensionSetupViewModel:211/:223` (d) — all lose the `for: userID` argument. Without this the onboarding-complete flag silently resets on every launch.
+- **BSP cut (a, c, f).** App-side reference surface: `SettingsScreen` (feature toggle + status labels + excluded-apps section + coordinator reads, ~15 sites), `ActionPanel` (`MenuConfiguration.toggleBinaryPartition` case, `ActionPanelManager` enable/checkmark/title, `MenuActionDispatcher` handler, `ActionPanelContent` accent styling), `Configurations/menu-default.json:205-213`, and `LoggingController:184` (`"TopSnapToggle"` subsystem string).
+- **Native-host socket path (h).** Wave 1 renamed the IPC socket to `~/Library/Application Support/DeskJig/native-messaging.sock` (`ChromeExtensionConstants.swift:37`, `NativeMessagingServer.swift:120`). `IPCClient.defaultSocketPath` must be renamed to match or the Chrome bridge dies silently.
+- **App-side UI duplicates of shared types (d, f).** `UI/BlurBackdrop`, `UI/VisualEffect` (byte-identical to the package copy), `UI/Animations+Transitions/{Animations,BlurTransition}`, `UI/ViewModifiers/ViewModifiers` all exist in both the app and `DeskJigShared`. They compiled as separate modules in Bento; port as-is (write-first) and file the dedup rather than resolving it mid-port.
+
+### Wave 4 tranche w4-b-model — flagged app-behavior change
+
+**`DeskJigCLIInstaller` (`DeskJig/Model/DeskJigCLIInstaller.swift`, ported from `Nexus/Model/BentoCLIInstaller.swift`) drops the privileged install path entirely for M1.** The source app installed the `bentoctl` symlink at `/usr/local/bin` via an `SMJobBless`/XPC helper daemon (`BentoCLIBlessHelper` + `BentoCLIBlessHelperProtocol`, `com.mscontrol.bento.bentoctl-helper`), with an `osascript "with administrator privileges"` fallback. None of that is ported: `CLIHelper/` does not exist in the M1 tree, there is no `SMJobBless` target, and tranche a drops the helper's mach-lookup entitlement. Every `SMAppService`/`NSXPCConnection`/`AppleScriptRunner`-administrator-privileges call path is removed, not stubbed.
+
+In its place, `install()` attempts a direct, non-privileged `FileManager.createSymbolicLink` from the bundled `deskjig` binary to `/usr/local/bin/deskjig`. That succeeds when `/usr/local/bin` is user-writable (the common case on a fresh Mac) and fails cleanly otherwise — the failure path returns `InstallResult.manualCommand`, a copy-paste `sudo mkdir -p ... && sudo ln -sf ...` string the UI (tranche c, `SettingsScreen`) must surface instead of reporting silent success. **Tranche c needs to render `manualCommand` when present** — if it only checks `error`, the user sees a failure with no recovery path.
+
+Also note for the integrator: the install target changed from `/usr/local/bin/bentoctl` to `/usr/local/bin/deskjig` (Wave 3's CLI product name). `BundleIdentity.legacyCLIInstallPath` (`DeskJigShared`) still holds the old `/usr/local/bin/bentoctl` path for a possible compat symlink, but no compat symlink is created anywhere in M1 — left as an explicit Wave 4/5 decision (see the Wave 3 addendum above), not invented here.
+
+## Wave 4 integration addendum — checkpoint D (app compiles)
+
+All eight tranche branches (`w4-a-app-core` … `w4-h-nativehost`) merged into `wave-4/app`. Only one merge conflict, in this file (two tranches appended sections); both were kept. `xcodebuild -workspace DeskJig.xcworkspace -scheme DeskJig -configuration Debug -destination platform=macOS,arch=arm64 CODE_SIGNING_ALLOWED=NO build` is **green, including from a deleted `build/DerivedData`**. The app was deliberately **not launched** on the integration host: `DeskJig.app` still carries `com.mscontrol.bento`, so launching it would collide with the developer's running Bento through `SingleInstanceGuard`. Rung E happens on another host.
+
+### Assets
+
+`Nexus/Assets.xcassets` → `DeskJig/Assets.xcassets`, byte-identical payloads, minus three sets and with three renames.
+
+| Action | Set | Note |
+|---|---|---|
+| dropped | `stripeLogo.imageset` | only consumer was the excluded `SubscriptionView` |
+| dropped | `Account Providers/{apple,github,google}.imageset` | only consumers were the excluded auth views |
+| dropped | `loginButtonBackgroundColor.colorset` | verified: **zero** references anywhere in the reference tree, not just in ported code |
+| renamed | `Bento Logotype.imageset` → `DeskJig Logotype.imageset` | payload `.svg` renamed, `Contents.json` filename updated |
+| renamed | `BentoAnimation.dataset` → `DeskJigAnimation.dataset` | payload `BentoAnimation-fixed.json` → `DeskJigAnimation-fixed.json`, `Contents.json` updated |
+| renamed | `bentoGridIcon.imageset` → `deskjigGridIcon.imageset` | payload `.png` renamed, `Contents.json` updated |
+| renamed | `Nexus/bentoMotion 3.mp4` → `DeskJig/deskjig-motion.mp4` | referenced, not dropped: `LottieSplashView.swift:39` loads it by name; that string was updated |
+
+`BentoLoadingIndicator.lottie` was already renamed to `DeskJigLoadingIndicator.lottie` by tranche f — **verified against the load site**: `DeskJigLoadingIndicator.swift:41` does `DotLottieFile.named("DeskJigLoadingIndicator")`, which matches. `AppIcon.appiconset` keeps its name (the name is API, the artwork is a Wave-5/M2 design task).
+
+Everything else in the catalog rode across unchanged, including sets nothing references today (`brandBlue`, `brandLightGray`, `brandMidGray`, `textFieldBackground`, `textFieldBorder`, `screenshots/*`, several `icons/*`) — they were equally unreferenced in Bento, so this is not new dead weight and the port is not the place to prune it.
+
+**One brand string survives inside an asset payload:** `DeskJigAnimation-fixed.json` names its internal Lottie composition `bentoMotion 2`. It is not a load key — nothing looks it up — and rewriting an animation payload is riskier than leaving it, so it was left byte-identical. Add it to the legacy-identifier register rather than to a build step.
+
+### Info.plist, xcconfigs, entitlements
+
+- Tranche a had already applied the e1 §2.29 cuts (AppEnvironment, all three BetterStack keys, the Google URL type, COGNITO_*, KEY_GATEWAY_BASE_URL, all four Stripe lookups, USE_GATEWAY_LOGS, the font keys). Integration **verified them against the built bundle**, not just the source file — see the checkpoint-D evidence below.
+- The plist moved `Config/Info.plist` → `DeskJig/Info.plist` and the (now empty) root `Config/` directory is gone. It sits inside the synchronized root group, so it is listed in the target's membership-exception set; `EXCLUDED_RESOURCE_FILE_NAMES = Info.plist` in both xcconfigs is the second belt.
+- **Sparkle feed is a deliberate placeholder.** `SUFeedURL = https://example.invalid/appcast.xml`, `SUPublicEDKey` empty. `.invalid` is reserved by RFC 6761 and can never resolve, so a check can reach no server, and an empty key means nothing could be trusted if it did. Both keys are *present* rather than omitted so `SPUStandardUpdaterController` initialises against a well-formed URL. `SUEnableAutomaticChecks` was considered and rejected: `SparkleController.swift:156` sets `updater.automaticallyChecksForUpdates` in code, and Sparkle complains when that property is also pinned in Info.plist. **Rung-E watch item:** nothing here has been exercised at runtime — if Sparkle's periodic check surfaces a visible network-failure alert on launch, that is the place to fix it, not at compile time. Real feed + real EdDSA key are an M2 decision.
+- xcconfigs: e1 §2.30 cuts already applied by tranche a (the leaked CloudFront comment block, `KEY_GATEWAY_BASE_URL`, `APP_ENVIRONMENT`); only `EXCLUDED_RESOURCE_FILE_NAMES` remains in each. **`ReleaseCandidate.xcconfig` deleted** and no ReleaseCandidate configuration exists in the new project — Debug and Release only.
+- `DeskJig/DeskJig.entitlements` keeps `keychain-access-groups = $(AppIdentifierPrefix)com.mscontrol.bento` (frozen with the bundle id) and drops the `com.apple.security.temporary-exception.mach-lookup.global-name` entry for `com.mscontrol.bento.bentoctl-helper` — there is no bless helper in M1.
+
+### Project shape (`DeskJig.xcodeproj`, objectVersion 77)
+
+At the repository root, alongside `DeskJig/`, mirroring how `Nexus.xcodeproj` sits alongside `Nexus/`.
+
+- **One target**, `DeskJig` → `DeskJig.app`. `PRODUCT_BUNDLE_IDENTIFIER = com.mscontrol.bento` (frozen), `PRODUCT_NAME = DeskJig`, `INFOPLIST_KEY_CFBundleDisplayName = DeskJig`, `LSUIElement YES`, `ENABLE_HARDENED_RUNTIME YES`, `ENABLE_APP_SANDBOX NO`, `AUTOMATION_APPLE_EVENTS YES`, `MACOSX_DEPLOYMENT_TARGET 14.0`, `CODE_SIGN_STYLE Automatic` with **no `DEVELOPMENT_TEAM`** so ad-hoc/unsigned builds work on any machine. `MARKETING_VERSION` reset to `0.1.0`, `CURRENT_PROJECT_VERSION` to `1`.
+- `INFOPLIST_KEY_NSAppleEventsUsageDescription` is intentionally **not** set as a build setting: the reference set both, and the build setting wins over the file, which would have resurrected Bento's wording. The DeskJig string in `Info.plist` is now the one that ships.
+- One `PBXFileSystemSynchronizedRootGroup` (`DeskJig`), one exception set (`Configs/Debug.xcconfig`, `Configs/Release.xcconfig`, `Info.plist`). No per-file references — directory renames stay one-line edits.
+- Package dependencies: `DeskJigShared` (workspace group, no `package =` key), `KeyboardShortcuts` 2.3.0+, `Sparkle` 2.8.0+, `swift-collections` 1.3.0+ (`Collections`), `lottie-ios` 4.5.2+ — same requirements as the reference — plus the `DeskJigNativeHost` local package. **No Firebase, Sentry, AppAuth or GoogleSignIn**, and none of their transitive pins.
+- Cross-project dependency on the `deskjig` target in `DeskJigCLI.xcodeproj`, plus **one** copy phase embedding the CLI with `CodeSignOnCopy`. No helper target, no `Library/LaunchServices` phase, no `Library/LaunchDaemons` phase.
+- No test target — Wave 5.
+- Shared scheme `DeskJig.xcscheme` committed (build/run/profile; empty `Testables`, to be filled in Wave 5). It keeps the reference's `SHOW_FULL_URLS=1` launch env and the disabled `--reset-defaults` argument, and drops the hardcoded `WorkspaceIntegrationTests` skip along with the test plans.
+- Workspace order is now app project, package, CLI project.
+
+**`DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved` is new and load-bearing.** Without it, xcodebuild wrote the app's resolved graph into `DeskJigShared/Package.resolved`, and `swift build --package-path DeskJigShared` (checkpoint A) promptly pruned the four app-only pins back out — the two rungs rewrote the same file on every alternation. With the workspace-level file present, Xcode uses it and the package's own resolved file stays untouched. Verified both ways.
+
+### The `Contents/MacOS/deskjig` collision — a real bug, found at checkpoint D
+
+The reference embeds `bentoctl` at `Contents/MacOS/`, and that is what this integration originally reproduced. **It silently destroyed the app.** macOS volumes are case-insensitive by default, so `Contents/MacOS/deskjig` and the app's own main executable `Contents/MacOS/DeskJig` are one and the same path: the copy phase overwrote the 40 KB app stub with the 27 MB CLI, and the first build produced a `DeskJig.app` with **no app executable at all**. Bento never met this because `bentoctl` and `Bento` differ in more than case.
+
+Fixes, all in this branch:
+
+- The copy phase now targets `$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers`. Still one phase, still `CodeSignOnCopy`.
+- `DeskJigCLIInstaller.bundledCLIPath()` looks in `Contents/Helpers/` first, no longer probes the executable's own directory, and **rejects any candidate that resolves to the app's own executable**. Without that guard the installer would have pointed `/usr/local/bin/deskjig` at `DeskJig.app`. `manualInstallCommand()`'s fallback path was updated to match.
+- This is a deviation from the reference bundle layout and from the Wave-4 brief, forced by the rename. Anything downstream that assumes `Contents/MacOS/deskjig` — packaging scripts, a ported `cli-smoke-test`, docs — needs the same update. `Contents/Helpers/` is a standard, notarization-safe location for a bundled non-launchable tool.
+
+### Seam fixes applied during the build loop
+
+| Site | Fix |
+|---|---|
+| `WorkspaceViewModel.swift:147` | dropped `screenIndicatorManager.setOverlayWindowManager(…)`. Wave 1 removed that setter together with its only two readers (`toggleGrid()`, `isGridVisible()`, both dead), so the call was already a no-op; the app-side call was cut rather than the package cleanup reverted. |
+| `DeskJigApp.swift:59/124/160`, `AppDelegate.swift:269` | dropped the `ActionPanelManager.isDisabled` gate at all four sites. e1 §2.1/§2.4 expected the property to survive as a constant `false`; tranche f removed it outright, which is the better cut — the panel is enabled from construction. Two of the sites were only logging it. |
+| `SimpleOnboardingOverlay.swift` | restored `PlayerContainerView` (23 lines). It sat below the duplicate Discord onboarding UI that e1 §2.22 deletes and went with it, but `LoopingVideoPlayer` — which drives all six onboarding videos — is its only user. |
+| `DesignSystemSectionView.swift:128` | `.dsButton(variant: .community)` → `.green`. Tranche e renamed the variant while tranche d kept the old call site. |
+| `MenuBarView.swift` | deleted the "Test Crash", "Test Non-Fatal Error" and "Test Workspace Restoration Failure" debug items — each existed solely to push a synthetic event into Crashlytics or Sentry (e1 §2.2), and nothing local replaces them. "Reset Tutorial & Logout" → "Reset Tutorial", calling the `resetTutorialProgress()` that tranche a already ported. |
+| `ChromeExtensionConstants.swift:42` | `Contents/MacOS/DeskJigNativeHost` → `Contents/MacOS/BentoNativeHost`. Wave 1 renamed the constant; tranche h deliberately froze the executable **product** name at `BentoNativeHost` because the Chrome native-messaging manifest hardcodes it. The constant was naming a binary that is never built. |
+
+### Checkpoint D evidence (static — nothing was launched)
+
+- Clean build: `rm -rf build/DerivedData` then rebuild → `BUILD SUCCEEDED`, 0 errors, 0 source warnings (the single logged warning is `appintentsmetadataprocessor` reporting no AppIntents dependency).
+- `DeskJig.app/Contents/MacOS/DeskJig` is a 40 KB `Mach-O 64-bit executable arm64` stub over `DeskJig.debug.dylib`; `DeskJig.app/Contents/Helpers/deskjig` is byte-identical to the `deskjig` CLI product.
+- In-bundle `Contents/Info.plist`: `CFBundleIdentifier com.mscontrol.bento`, `CFBundleExecutable/Name/DisplayName DeskJig`, `LSUIElement true`, the `bento` URL scheme is the only URL type, `UTExportedTypeDeclarations[0].UTTypeIdentifier == com.nexus.windowsnapshot`, `BentoWorktreeName` present. `AppEnvironment`, `BetterStack*`, `KEY_GATEWAY_BASE_URL`, `USE_GATEWAY_LOGS`, all four Stripe lookups and `ATSApplicationFontsPath` are all absent, and a case-insensitive grep for google/cognito/stripe/betterstack/gateway over the whole plist returns zero.
+- `otool -L` over the app stub, the debug dylib and the embedded CLI: the only non-system links are `Sparkle.framework` and `libswiftCompatibilitySpan.dylib`. Zero references to Firebase, Sentry, GoogleSignIn, AppAuth, GTMAppAuth, Crashlytics, GoogleUtilities, nanopb, leveldb, abseil or grpc, and `nm -u` finds no undefined symbols matching those either. `Contents/Frameworks/` contains only Sparkle.
+
+### Open items for the coordinator
+
+1. **`BentoNativeHost` is built but never embedded.** The app target links the executable product, exactly as the reference did, and Xcode does not copy it into `Contents/MacOS/`. `ChromeExtensionConstants.nativeHostBinaryPath` therefore points at a path that does not exist in the built bundle, so the Chrome bridge cannot install its manifest. This reproduces reference behaviour, so it is likely handled by packaging outside the Xcode build in Bento — worth confirming before assuming DeskJig needs a second copy phase. Not fixed here, because adding one would have meant a second copy phase against an explicit "one copy phase" instruction.
+2. **Sparkle placeholder feed is untested at runtime** (see above) — a rung-E watch item, not a compile-time one.
+3. **`AppIcon.appiconset` still ships Bento's artwork** under a neutral name. Cosmetic, needs a designer, not a porter.
+4. **`bentoMotion 2` inside `DeskJigAnimation-fixed.json`** — register entry, not a code change.
+5. The app-side/package duplicate views flagged by tranche d/f (`BlurBackdrop`, `VisualEffect`, `Animations`, `BlurTransition`, `ViewModifiers`) were left duplicated as instructed; they compile cleanly as separate modules. Dedup is a follow-up ticket.

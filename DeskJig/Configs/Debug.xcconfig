@@ -1,0 +1,3 @@
+// Debug configuration
+
+EXCLUDED_RESOURCE_FILE_NAMES = Info.plist

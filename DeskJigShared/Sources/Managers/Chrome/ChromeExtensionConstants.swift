@@ -37,9 +37,15 @@ public enum ChromeExtensionConstants {
         return appSupport.appendingPathComponent("DeskJig/native-messaging.sock").path
     }
 
-    /// Native host binary path (inside app bundle)
+    /// Native host binary path (inside app bundle).
+    ///
+    /// The last path component is the executable PRODUCT name, which
+    /// `DeskJigNativeHost/Package.swift` deliberately freezes at
+    /// `BentoNativeHost`: the Chrome extension's native-messaging manifest
+    /// hardcodes this path, so the binary name cannot change until that manifest
+    /// ships an update. Only the package/target/directory were renamed.
     public static var nativeHostBinaryPath: String {
-        Bundle.main.bundlePath + "/Contents/MacOS/DeskJigNativeHost"
+        Bundle.main.bundlePath + "/Contents/MacOS/BentoNativeHost"
     }
 
     /// Chrome native messaging hosts directory

@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "container:DeskJig.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:DeskJigShared">
    </FileRef>
    <FileRef

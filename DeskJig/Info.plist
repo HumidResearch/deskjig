@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BentoWorktreeName</key>
+	<string>$(BENTO_WORKTREE_NAME)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Frozen legacy scheme: existing installs, bentoctl and user
+				     automation all deliver deep links as bento://… -->
+				<string>bento</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>DeskJig controls supported apps to restore workspace windows.</string>
+	<key>NSApplicationCrashOnExceptions</key>
+	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Taking preview of apps when creating workspace</string>
+	<!-- PLACEHOLDER FEED — M2 decision. The host is intentionally unresolvable
+	     (RFC 6761 .invalid) so an update check can never reach a real server,
+	     and SUPublicEDKey is empty so nothing could be trusted if it did.
+	     Swap both for the real DeskJig appcast + EdDSA key before shipping.
+	     Keys are present (not omitted) so Sparkle initialises with a
+	     well-formed feed URL rather than tripping its missing-feed assertion. -->
+	<key>SUFeedURL</key>
+	<string>https://example.invalid/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string></string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Window Snapshot</string>
+			<key>UTTypeIcons</key>
+			<dict/>
+			<key>UTTypeIdentifier</key>
+			<string>com.nexus.windowsnapshot</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>windowsnapshot</string>
+				</array>
+			</dict>
+		</dict>
+		<dict/>
+	</array>
+</dict>
+</plist>

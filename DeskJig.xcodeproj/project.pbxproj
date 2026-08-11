@@ -1,0 +1,540 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		DE5C16000000000000010027 /* deskjig in CopyFiles */ = {isa = PBXBuildFile; fileRef = DE5C16000000000000010023 /* deskjig */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		DE5C16000000000000010050 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010040 /* KeyboardShortcuts */; };
+		DE5C16000000000000010051 /* DeskJigShared in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010041 /* DeskJigShared */; };
+		DE5C16000000000000010052 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010042 /* Sparkle */; };
+		DE5C16000000000000010053 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010043 /* Collections */; };
+		DE5C16000000000000010054 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010044 /* Lottie */; };
+		DE5C16000000000000010055 /* BentoNativeHost in Frameworks */ = {isa = PBXBuildFile; productRef = DE5C16000000000000010045 /* BentoNativeHost */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DE5C16000000000000010024 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = DE5C16000000000000000006;
+			remoteInfo = deskjig;
+		};
+		DE5C16000000000000010025 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = DE5C16000000000000000005;
+			remoteInfo = deskjig;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DE5C16000000000000010012 /* Embed deskjig CLI */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers";
+			dstSubfolderSpec = 0;
+			files = (
+				DE5C16000000000000010027 /* deskjig in CopyFiles */,
+			);
+			name = "Embed deskjig CLI";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		DE5C16000000000000010006 /* DeskJig.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeskJig.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DE5C16000000000000010019 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DeskJig/Configs/Debug.xcconfig; sourceTree = "<group>"; };
+		DE5C16000000000000010020 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DeskJig/Configs/Release.xcconfig; sourceTree = "<group>"; };
+		DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = DeskJigCLI.xcodeproj; path = DeskJigCLI/DeskJigCLI.xcodeproj; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DE5C16000000000000010008 /* Exceptions for "DeskJig" folder in "DeskJig" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Configs/Debug.xcconfig,
+				Configs/Release.xcconfig,
+				Info.plist,
+			);
+			target = DE5C16000000000000010005 /* DeskJig */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		DE5C16000000000000010007 /* DeskJig */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DE5C16000000000000010008 /* Exceptions for "DeskJig" folder in "DeskJig" target */,
+			);
+			path = DeskJig;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DE5C16000000000000010010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DE5C16000000000000010050 /* KeyboardShortcuts in Frameworks */,
+				DE5C16000000000000010051 /* DeskJigShared in Frameworks */,
+				DE5C16000000000000010052 /* Sparkle in Frameworks */,
+				DE5C16000000000000010053 /* Collections in Frameworks */,
+				DE5C16000000000000010054 /* Lottie in Frameworks */,
+				DE5C16000000000000010055 /* BentoNativeHost in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DE5C16000000000000010002 = {
+			isa = PBXGroup;
+			children = (
+				DE5C16000000000000010007 /* DeskJig */,
+				DE5C16000000000000010019 /* Debug.xcconfig */,
+				DE5C16000000000000010020 /* Release.xcconfig */,
+				DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */,
+				DE5C16000000000000010004 /* Frameworks */,
+				DE5C16000000000000010003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DE5C16000000000000010003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DE5C16000000000000010006 /* DeskJig.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DE5C16000000000000010004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DE5C16000000000000010022 /* DeskJigCLI Products */ = {
+			isa = PBXGroup;
+			children = (
+				DE5C16000000000000010023 /* deskjig */,
+			);
+			name = "DeskJigCLI Products";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DE5C16000000000000010005 /* DeskJig */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DE5C16000000000000010014 /* Build configuration list for PBXNativeTarget "DeskJig" */;
+			buildPhases = (
+				DE5C16000000000000010009 /* Sources */,
+				DE5C16000000000000010010 /* Frameworks */,
+				DE5C16000000000000010011 /* Resources */,
+				DE5C16000000000000010012 /* Embed deskjig CLI */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DE5C16000000000000010026 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DE5C16000000000000010007 /* DeskJig */,
+			);
+			name = DeskJig;
+			packageProductDependencies = (
+				DE5C16000000000000010040 /* KeyboardShortcuts */,
+				DE5C16000000000000010041 /* DeskJigShared */,
+				DE5C16000000000000010042 /* Sparkle */,
+				DE5C16000000000000010043 /* Collections */,
+				DE5C16000000000000010044 /* Lottie */,
+				DE5C16000000000000010045 /* BentoNativeHost */,
+			);
+			productName = DeskJig;
+			productReference = DE5C16000000000000010006 /* DeskJig.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DE5C16000000000000010001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					DE5C16000000000000010005 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+				};
+			};
+			buildConfigurationList = DE5C16000000000000010013 /* Build configuration list for PBXProject "DeskJig" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DE5C16000000000000010002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DE5C16000000000000010030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				DE5C16000000000000010031 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				DE5C16000000000000010032 /* XCRemoteSwiftPackageReference "swift-collections" */,
+				DE5C16000000000000010033 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				DE5C16000000000000010034 /* XCLocalSwiftPackageReference "DeskJigNativeHost" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DE5C16000000000000010003 /* Products */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = DE5C16000000000000010022 /* DeskJigCLI Products */;
+					ProjectRef = DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				DE5C16000000000000010005 /* DeskJig */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		DE5C16000000000000010023 /* deskjig */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = deskjig;
+			remoteRef = DE5C16000000000000010024 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DE5C16000000000000010011 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DE5C16000000000000010009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DE5C16000000000000010026 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = deskjig;
+			targetProxy = DE5C16000000000000010025 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		DE5C16000000000000010015 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE5C16000000000000010019 /* Debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DE5C16000000000000010016 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = DE5C16000000000000010020 /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		DE5C16000000000000010017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				AUTOMATION_APPLE_EVENTS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeskJig/DeskJig.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(PROJECT_DIR)/DeskJig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = DeskJig;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mscontrol.bento;
+				PRODUCT_NAME = DeskJig;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		DE5C16000000000000010018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				AUTOMATION_APPLE_EVENTS = YES;
+				CODE_SIGN_ENTITLEMENTS = DeskJig/DeskJig.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(PROJECT_DIR)/DeskJig/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = DeskJig;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mscontrol.bento;
+				PRODUCT_NAME = DeskJig;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DE5C16000000000000010013 /* Build configuration list for PBXProject "DeskJig" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DE5C16000000000000010015 /* Debug */,
+				DE5C16000000000000010016 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DE5C16000000000000010014 /* Build configuration list for PBXNativeTarget "DeskJig" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DE5C16000000000000010017 /* Debug */,
+				DE5C16000000000000010018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		DE5C16000000000000010034 /* XCLocalSwiftPackageReference "DeskJigNativeHost" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = DeskJigNativeHost;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		DE5C16000000000000010030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.3.0;
+			};
+		};
+		DE5C16000000000000010031 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.0;
+			};
+		};
+		DE5C16000000000000010032 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.0;
+			};
+		};
+		DE5C16000000000000010033 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DE5C16000000000000010040 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DE5C16000000000000010030 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+		DE5C16000000000000010041 /* DeskJigShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DeskJigShared;
+		};
+		DE5C16000000000000010042 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DE5C16000000000000010031 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		DE5C16000000000000010043 /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DE5C16000000000000010032 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+		DE5C16000000000000010044 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DE5C16000000000000010033 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+		DE5C16000000000000010045 /* BentoNativeHost */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BentoNativeHost;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = DE5C16000000000000010001 /* Project object */;
+}

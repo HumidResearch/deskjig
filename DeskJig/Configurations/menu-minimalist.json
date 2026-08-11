@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "settings": {
+    "theme": "minimalist",
+    "animationSpeed": 0.25,
+    "enableKeyboardShortcuts": false
+  },
+  "rootItems": [
+    {
+      "id": "workspaces",
+      "title": "Workspaces",
+      "icon": {
+        "type": "emoji",
+        "value": "📁"
+      },
+      "type": "dynamic"
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "icon": {
+        "type": "emoji",
+        "value": "⚙️"
+      },
+      "type": "leaf",
+      "action": "app.settings"
+    }
+  ]
+}
+

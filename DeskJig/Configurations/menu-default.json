@@ -1,0 +1,309 @@
+{
+    "version": "1.0",
+    "settings": {
+        "theme": "default",
+        "animationSpeed": 0.3,
+        "maxRecentWorkspaces": 10,
+        "enableKeyboardShortcuts": true,
+        "autoCloseDelaySeconds": 5
+    },
+    "rootItems": [
+        {
+            "id": "workspaces.list",
+            "title": "Workspaces",
+            "title": "Workspaces",
+            "subtitle": "Saved layouts",
+            "icon": {
+                "type": "systemImage",
+                "value": "rectangle.grid.2x2"
+            },
+            "type": "dynamic",
+            "shortcuts": ["cmd+w"],
+            "children": [
+                {
+                    "id": "workspaces.create",
+                    "title": "Create New",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "plus.rectangle"
+                    },
+                    "type": "leaf",
+                    "action": "workspace.create"
+                }
+            ]
+        },
+        {
+            "id": "windows.snap",
+            "title": "Arrange",
+            "icon": {
+                "type": "systemImage",
+                "value": "rectangle.split.2x2"
+            },
+            "type": "branch",
+            "children": [
+                {
+                    "id": "windows.maximize",
+                    "title": "Maximize",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "arrow.up.left.and.arrow.down.right.square"
+                    },
+                    "type": "leaf",
+                    "action": "window.maximize",
+                    "shortcuts": ["cmd+shift+return"]
+                },
+                {
+                    "id": "windows.center",
+                    "title": "Center",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "scope"
+                    },
+                    "type": "leaf",
+                    "action": "window.center",
+                    "shortcuts": ["cmd+shift+c"]
+                },
+                {
+                    "id": "windows.rightHalf",
+                    "title": "Right Half",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.righthalf.filled"
+                    },
+                    "type": "leaf",
+                    "action": "window.rightHalf",
+                    "shortcuts": ["ctrl+cmd+right"]
+                },
+                {
+                    "id": "windows.leftHalf",
+                    "title": "Left Half",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.lefthalf.filled"
+                    },
+                    "type": "leaf",
+                    "action": "window.leftHalf",
+                    "shortcuts": ["ctrl+cmd+left"]
+                },
+                {
+                    "id": "windows.topHalf",
+                    "title": "Top Half",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.tophalf.filled"
+                    },
+                    "type": "leaf",
+                    "action": "window.topHalf",
+                    "shortcuts": ["ctrl+cmd+up"]
+                },
+                {
+                    "id": "windows.bottomHalf",
+                    "title": "Bottom Half",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.bottomhalf.filled"
+                    },
+                    "type": "leaf",
+                    "action": "window.bottomHalf",
+                    "shortcuts": ["ctrl+cmd+down"]
+                },
+                {
+                    "id": "windows.thirds",
+                    "title": "Thirds",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.split.3x1"
+                    },
+                    "type": "branch",
+                    "children": [
+                        {
+                            "id": "windows.thirds.leftThird",
+                            "title": "Left Third",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "rectangle.leadingthird.inset.filled"
+                            },
+                            "type": "leaf",
+                            "action": "window.leftThird"
+                        },
+                        {
+                            "id": "windows.thirds.centerThird",
+                            "title": "Center Third",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "rectangle.center.inset.filled"
+                            },
+                            "type": "leaf",
+                            "action": "window.centerThird"
+                        },
+                        {
+                            "id": "windows.thirds.rightThird",
+                            "title": "Right Third",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "rectangle.trailingthird.inset.filled"
+                            },
+                            "type": "leaf",
+                            "action": "window.rightThird"
+                        }
+                    ]
+                },
+                {
+                    "id": "windows.quarters",
+                    "title": "Quarters",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.split.2x2"
+                    },
+                    "type": "branch",
+                    "children": [
+                        {
+                            "id": "windows.topRightQuarter",
+                            "title": "Top Right",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "inset.filled.topright.rectangle"
+                            },
+                            "type": "leaf",
+                            "action": "window.topRightQuarter"
+                        },
+                        {
+                            "id": "windows.topLeftQuarter",
+                            "title": "Top Left",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "inset.filled.topleft.rectangle"
+                            },
+                            "type": "leaf",
+                            "action": "window.topLeftQuarter"
+                        },
+                        {
+                            "id": "windows.bottomRightQuarter",
+                            "title": "Bottom Right",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "inset.filled.bottomright.rectangle"
+                            },
+                            "type": "leaf",
+                            "action": "window.bottomRightQuarter"
+                        },
+                        {
+                            "id": "windows.bottomLeftQuarter",
+                            "title": "Bottom Left",
+                            "icon": {
+                                "type": "systemImage",
+                                "value": "inset.filled.bottomleft.rectangle"
+                            },
+                            "type": "leaf",
+                            "action": "window.bottomLeftQuarter"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "tiling",
+            "title": "Tidy Up",
+            "subtitle": "Auto-arrange all windows",
+            "icon": {
+                "type": "systemImage",
+                "value": "rectangle.grid.1x2"
+            },
+            "type": "branch",
+            "children": [
+                {
+                    "id": "tiling.sideBySide",
+                    "title": "Side by Side",
+                    "subtitle": "Two columns",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.split.2x1"
+                    },
+                    "type": "leaf",
+                    "action": "tiling.sideBySide",
+                    "shortcuts": ["ctrl+option+s"]
+                },
+                {
+                    "id": "tiling.topBottom",
+                    "title": "Top & Bottom",
+                    "subtitle": "Two rows",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.split.1x2"
+                    },
+                    "type": "leaf",
+                    "action": "tiling.topBottom",
+                    "shortcuts": ["ctrl+option+t"]
+                },
+                {
+                    "id": "tiling.quarters",
+                    "title": "Quarters",
+                    "subtitle": "Four quadrants",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "rectangle.split.2x2"
+                    },
+                    "type": "leaf",
+                    "action": "tiling.quarters",
+                    "shortcuts": ["ctrl+option+q"]
+                }
+            ]
+        },
+        {
+            "id": "visibility",
+            "title": "Visibility",
+            "icon": {
+                "type": "systemImage",
+                "value": "eye"
+            },
+            "type": "branch",
+            "children": [
+                {
+                    "id": "windows.hideAll",
+                    "title": "Hide All Apps",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "eye.slash.fill"
+                    },
+                    "type": "leaf",
+                    "action": "window.hideAll",
+                    "shortcuts": ["cmd+option+h"]
+                },
+                {
+                    "id": "windows.hide",
+                    "title": "Hide App",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "eye.slash"
+                    },
+                    "type": "leaf",
+                    "action": "window.hide",
+                    "shortcuts": ["cmd+h"]
+                },
+                {
+                    "id": "windows.showAll",
+                    "title": "Show All Apps",
+                    "icon": {
+                        "type": "systemImage",
+                        "value": "eye.fill"
+                    },
+                    "type": "leaf",
+                    "action": "window.unhideAll",
+                    "shortcuts": ["cmd+option+shift+h"]
+                }
+            ]
+        },
+        {
+            "id": "settings",
+            "title": "Settings",
+            "subtitle": "Configure DeskJig",
+            "icon": {
+                "type": "systemImage",
+                "value": "gear"
+            },
+            "type": "leaf",
+            "action": "app.settings",
+            "shortcuts": ["cmd+,"]
+        }
+    ]
+}

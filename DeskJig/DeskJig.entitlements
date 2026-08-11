@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- The upstream keychain-access-groups entitlement ($(AppIdentifierPrefix)com.mscontrol.bento)
+     was auth-only and is dropped: nothing in DeskJig touches the keychain, and carrying it
+     forces development-certificate signing (ad-hoc builds fail). See docs/LEGACY_IDENTIFIERS.md. -->
+<dict/>
+</plist>
