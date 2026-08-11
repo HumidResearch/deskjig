@@ -1,0 +1,15 @@
+// DeskJigCLI.xcconfig
+//
+// Shared, checked-in build settings for the `deskjig` command-line tool.
+//
+// Signing identity is deliberately NOT pinned here: DeskJig builds ad-hoc /
+// automatically-signed by default so a fresh clone builds with no Apple
+// Developer account. To sign with your own team, create an untracked
+// `Local.xcconfig` next to this file:
+//
+//     DEVELOPMENT_TEAM = ABCDE12345
+//
+// `Local.xcconfig` is gitignored; the optional include below is a no-op when
+// the file is absent.
+
+#include? "Local.xcconfig"

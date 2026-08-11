@@ -6,3 +6,13 @@
 
 # SwiftPM
 .build/
+.port-progress.txt
+
+# Xcode
+build/
+xcuserdata/
+*.xcuserdatad/
+DerivedData/
+
+# Local, untracked signing overrides (see DeskJigCLI/DeskJigCLI.xcconfig)
+Local.xcconfig

@@ -106,3 +106,34 @@ The last two are a **discrepancy against the old CLI plan**, not a port defect. 
 **Seam fixes.** Tranches C and D both shipped `MockAXWindowEnumerator` — C in the shared `Tests/MockAXWindowService.swift`, D inline in `TerminalSupplementationServiceInjectionTests.swift`. The two copies were byte-identical; the inline one is gone and the shared file is the single copy, matching the upstream layout. All four tranches added an identical `testTarget` stanza to `Package.swift`, which merged to one copy without conflict.
 
 **No `Sources/` changes were needed** — every failure traced to the test port or the environment, none to Wave 1 source behavior.
+
+### Wave 3 integration addendum (checkpoint C)
+
+`xcodebuild -workspace DeskJig.xcworkspace -scheme deskjig -configuration Debug -derivedDataPath build/deskjig -destination platform=macOS,arch=arm64 CODE_SIGNING_ALLOWED=NO build` is **green from clean**, and the built `deskjig` runs `--help` and `--version` at exit 0.
+
+**Tranche delivery.** All three tranches (`w3-a-commands` 19 files, `w3-b-core-exec` 10, `w3-c-core-handlers` 9) delivered in full and were disjoint under `DeskJigCLI/Sources/` — the first wave to merge with no conflicts and nothing for the integrator to port. The command tree is `workspace, url-handoff, window, app, chrome, display, debug, logs, open, permissions, install, notify`; there is no `auth` subcommand and no auth handler, as planned.
+
+**Structure created (integrator-owned, per the ground rules):**
+
+- `DeskJigCLI/DeskJigCLI.xcodeproj` — `objectVersion = 77`, one command-line-tool target `deskjig` (product `deskjig`), and **one** `PBXFileSystemSynchronizedRootGroup` at `Sources/` with zero per-file references, so new source files need no project edit.
+- `DeskJig.xcworkspace` — members are `group:DeskJigShared` and `DeskJigCLI/DeskJigCLI.xcodeproj`. The target consumes `DeskJigShared` through an `XCSwiftPackageProductDependency` carrying **no `package` key**, resolved by the workspace group; this is exactly how the source repo wired `NexusShared`. The app project joins in Wave 4. `swift-argument-parser` (upToNextMajor 1.4.0) is the project's own remote package reference, as before.
+- `DeskJigCLI/DeskJigCLI.xcodeproj/xcshareddata/xcschemes/deskjig.xcscheme` — **committed**, closing the documented fresh-clone fragility: the source repo relied on Xcode autocreating the scheme, so `xcodebuild -scheme` failed on a clean checkout until the project had been opened in the IDE once.
+- `DeskJigCLI/DeskJigCLI.entitlements` — ported byte-for-byte (`app-sandbox` false, `automation.apple-events` true, `network.client` true). See the flag below.
+
+**Deliberate deviations from the reference project settings:**
+
+| Setting | Reference | Here | Why |
+|---|---|---|---|
+| `DEVELOPMENT_TEAM` | `7P9UN8DHNA` hardcoded in all four configs | absent | A fresh clone must build with no Apple Developer account. `CODE_SIGN_STYLE = Automatic` plus ad-hoc signing covers the local loop; `DeskJigCLI/DeskJigCLI.xcconfig` carries an optional `#include? "Local.xcconfig"` so a developer can set their own team in a gitignored file. Wave 4 needs a stable identity for the app (TCC grant persistence), not for the CLI. |
+| `MACOSX_DEPLOYMENT_TARGET` | 15.6 | 14.0 | Matches `DeskJigShared`'s `.macOS(.v14)` platform; the reference target was stricter than its own package for no stated reason. |
+| `SWIFT_STRICT_CONCURRENCY` | unset (Xcode default) | `targeted` | Makes the CLI target agree with the package's `-strict-concurrency=targeted`; the reference left the two lanes on different settings. |
+| `EXCLUDED_SOURCE_FILE_NAMES` | `bentoctl/main.swift` | absent | No longer needed — see the seam fix. |
+| `PRODUCT_BUNDLE_IDENTIFIER` | `com.mscontrol.bentoctl` | unchanged | Frozen legacy value (LEGACY_IDENTIFIERS.md). |
+
+**Seam fix (one, and the only build error in the whole integration).** `DeskJigCLI/Sources/main.swift` — a comment-only placeholder reading "Entry point is provided by `@main` on DeskJigCommand" — was deleted. Any file named `main.swift` makes its module top-level-code, which is illegal alongside `@main`: `error: 'main' attribute cannot be used in a module that contains top-level code`. The reference kept the file on disk and neutralized it with `EXCLUDED_SOURCE_FILE_NAMES` because its synchronized group spanned two source roots (`BentoCLI/Core` plus `../bentoctl`) and the file disambiguated which root owned the entry point. The ported layout is a single `Sources/` root, so the file had no job left. No other cross-tranche seam needed touching — no renamed-symbol drift, no package-API drift, no import fixes.
+
+**`--version` prints `unknown`, by inheritance, and needs a Wave 4/5 decision.** `DeskJigVersion.current` resolves `CFBundleShortVersionString` first, then a `version.json` walked up from the executable, then falls back to the literal `"unknown"`. A command-line tool has no Info.plist unless one is embedded, and the DeskJig repo has no root `version.json` (the source repo did: `{"marketing": "1.1.8-rc.3", "xcode": "1.1.8", "build": 106, ...}`). Both inputs are release-infrastructure artifacts and picking DeskJig's opening version number is not an integrator call, so the fallback stands for now. Fixing it is either a root `version.json` or `GENERATE_INFOPLIST_FILE` + `CREATE_INFOPLIST_SECTION_IN_BINARY` + `MARKETING_VERSION` on the tool target.
+
+**Binary name and compat.** The product is `deskjig`; `install` creates `/usr/local/bin/deskjig` only. LEGACY_IDENTIFIERS.md states DeskJig "ships `deskjig` and maintains a `bentoctl` compat symlink" — that second symlink does not exist in the ported `InstallCommand`. Left alone deliberately: `install` resolves a bundled binary inside `DeskJig.app` and cannot be exercised until Wave 4 ships the app bundle, so the compat symlink is a Wave 4/5 item, tracked here so it is not lost.
+
+**CLI↔app data contract is already live (checkpoint G preview).** `deskjig workspace list --format json` exits 0 against the legacy `UserDefaults(suiteName: "com.mscontrol.bento")` / `SavedWorkspaces` store and reads existing Bento workspaces unchanged — no migration, exactly as the register intends. It needs no Accessibility grant (it is a pure defaults read), so it is not a checkpoint-H-style AX exercise.
