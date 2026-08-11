@@ -40,3 +40,33 @@ A workspace created in the original Bento app (including Chrome windows on speci
 ## M2 (post-M1)
 
 Signed Developer ID build + notarization, Sparkle feed (new key + GitHub-hosted appcast), release workflow with fork-guards, placeholder download site updated by the release workflow, privileged CLI-install helper, Chrome-extension decision (the AppleScript path may make the extension optional), env-var rename (`DESKJIG_*` with legacy fallback).
+
+## Wave 1 tranche manifests (package: 231 source files → 200 ported + 3 new, 31 excluded)
+
+**Excluded from the package (never ported):** `Authentication/` (8); `Managers/{AuthenticationManager, DatabaseManager, WorkspaceSyncManager, TutorialSyncManager}` (TutorialSyncManager is mined for a new local `TutorialProgressStore`); `Utilities/SentryErrorHandler`; `FluentAPI/{UserAPIClient, UserNamespace, UserAdminNamespace, UserModels}`; `Models/AccountProvider`; `UI/ViewStyles/LoginTextFieldStyle` (auth-dead); **BSP/snapping set (12):** `Managers/{BinaryPartitionLayoutCoordinator, BinaryPartitionLayoutCoordinator+Testing, BinaryPartitionTree, GridSnappingManager, WindowSnappingFeatureControl}`, `UI/{EdgeSnapZoneResolver, GridOverlayView, TopSnapToggle, TopSnapZoneBar, LayoutZoneView, LayoutZoneWindow}`, `Models/DynamicWorkspaceZone`. Referencers needing BSP cut-edits: TraceFileWriter (t1), AXSubroleFiltering + ManagedWindowLifecycleProbe (t3), WindowManager + WindowLayoutManager + OverlayWindowManager (t4), FluentWorkspaceRestorer (t7b). `TilingLayoutManager` (preset layouts) and `DragDropManager` are NOT BSP — ported.
+
+| Tranche | Branch | Scope | Files |
+|---|---|---|---|
+| t1-foundation | `tranche/w1-t1-foundation` | Logging + Utilities + Extensions + Branding + Protocols + root; creates `BundleIdentity`, `LogRedaction`; `BentoLog`→`DeskJigLog` | 28+2 |
+| t2-models | `tranche/w1-t2-models` | Models + DirectoryWorkspace; serialization contract frozen | 31 |
+| t3-managers-core | `tranche/w1-t3-managers-core` | AX/window/display core managers | 12 |
+| t4-managers-workspace | `tranche/w1-t4-managers-workspace` | Workspace/window managers; UserDefaults-only storage collapse; new `TutorialProgressStore` | 13+1 |
+| t5-chrome | `tranche/w1-t5-chrome` | Chrome managers + native messaging + fluent Chrome services | 12 |
+| t6a-fluent-window | `tranche/w1-t6a-fluent-window` | Fluent window/app handle core | 12 |
+| t6b-fluent-services | `tranche/w1-t6b-fluent-services` | Fluent registries/services/queue/capture; `FluentServices` user-client cut | 18 |
+| t7a-executor | `tranche/w1-t7a-executor` | RestorationExecutor + extensions + plan builder | 14 |
+| t7b-restorer | `tranche/w1-t7b-restorer` | FluentWorkspaceRestorer, snapshot, locks, telemetry types | 15 |
+| t7c-matchers | `tranche/w1-t7c-matchers` | Matchers, positioning, portability, z-order | 14 |
+| t8-launchers-tmux | `tranche/w1-t8-launchers-tmux` | Launchers + tmux services; title-token + socket contracts frozen | 15 |
+| t9-ui | `tranche/w1-t9-ui` | Shared UI minus snapping/auth; `BentoButtonStyle`→`DeskJigButtonStyle` | 16 |
+
+Cross-tranche contracts fixed up front: `BundleIdentity` API (legacy identifier constants — values never change); `DeskJigLog` / `DeskJigButtonStyle` / `TmuxCommandService.listManagedSessions()` renames; persisted coding keys frozen (`windowsByBentoTitle`, `bentoTitle` raw value, workspace JSON); `BENTO_*` env names kept (rename is issue #13). Integrator owns `DeskJigShared/Package.swift` (deps: CocoaLumberjack, GRDB only; Swift 5 language mode + targeted strict concurrency, macOS 14) and merges tranche branches, looping `swift build --package-path DeskJigShared` to checkpoint A.
+
+### Wave 1 integration addendum (checkpoint A)
+
+Four tranche branches — `t1-foundation`, `t3-managers-core`, `t4-managers-workspace`, `t9-ui` — landed **empty**: their agents read the reference sources and never wrote a file. The integrator ported all four in the integration branch rather than reopening the tranches, following the rules above. Two deviations from the tranche manifests, both deliberate:
+
+- **`Extensions/Notification.swift` not ported.** Its entire contents (`showPasswordReset`, `subscriptionSuccess`, `passwordResetCode`) belong to the cut auth/subscription surfaces. t1 therefore lands 27 ported files + 2 new (`BundleIdentity`, `LogRedaction`), not 28+2.
+- **`Managers/AXSubroleFiltering.swift` and `Managers/ManagedWindowLifecycleProbe.swift` not ported.** The manifest lists them as BSP *referencers* needing cut-edits, but each file is in its entirety an `extension BinaryPartitionLayoutCoordinator` — with BSP excluded there is nothing left to port, so both are dropped rather than reduced to empty stubs. t3 lands 10 files, not 12.
+
+Commercial fonts are gone with the rest of the bundled assets: `Branding+Fonts.swift` drops the `PPNeueCorp` and `BerkeleyMono` name tables (and `AppFontFamily.berkeleyMono`), leaving the system-font path. Expected UI impact: brand mono styles render in the system monospaced face, and display styles in SF — the type scale, line heights and tracking are unchanged. The removed `Font.brand(size:style:)` / `NSFont.brand*Font` helpers force-unwrapped `NSFont(name:)` and would have trapped at runtime without the licensed fonts installed; no caller in the package used them.

@@ -1,0 +1,8 @@
+
+# agent scratch artifacts
+.codex-log.txt
+.codex-prompt.md
+.codex-report.md
+
+# SwiftPM
+.build/

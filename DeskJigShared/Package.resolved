@@ -1,0 +1,33 @@
+{
+  "originHash" : "8b4a21a505b90219e61a4fed76e5aeb23d334ffcbf3448203575629e612fcd8a",
+  "pins" : [
+    {
+      "identity" : "cocoalumberjack",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CocoaLumberjack/CocoaLumberjack.git",
+      "state" : {
+        "revision" : "c5f2ed4d219866117e135cf648180dc7b66739d3",
+        "version" : "3.9.1"
+      }
+    },
+    {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "b83108d10f42680d78f23fe4d4d80fc88dab3212",
+        "version" : "7.11.1"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log",
+      "state" : {
+        "revision" : "3ffafb9722d5d918c614feb496c8789a3b59d222",
+        "version" : "1.15.0"
+      }
+    }
+  ],
+  "version" : 3
+}
