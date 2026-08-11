@@ -31,6 +31,14 @@ struct DeskJigApp: App {
     /// `AppDelegate`'s `setMainWindowIsVisible()` method.
     static let mainWindowVisibilityPublisher = PassthroughSubject<(wasVisible: Bool, isVisible: Bool), Never>()
 
+    /// True when this process is the XCTest host for the `DeskJigTests` bundle.
+    ///
+    /// The app-hosted test target launches DeskJig itself, so anything that
+    /// claims a system-wide singleton (menu-bar item, floating action panel) or
+    /// reaches the network (the Sparkle update probe) must stay dormant — see
+    /// the matching bail-out in `AppDelegate.applicationDidFinishLaunching`.
+    static let isTestHost = RuntimeEnvironment.isRunningTests()
+
     // MARK: Initialization
     init() {
         // Set up logging FIRST so everything below is captured.
@@ -61,7 +69,7 @@ struct DeskJigApp: App {
         let actionPanel = ActionPanelManager(workspaceVM: workspaceVM)
         self.actionPanelManager = actionPanel
         self.appDelegate.actionPanelManager = actionPanel
-        if !SingleInstanceGuard.isSecondaryInstance {
+        if !SingleInstanceGuard.isSecondaryInstance && !Self.isTestHost {
             actionPanel.presentPanel()
         }
         actionPanel.openSettingsAction = { [weak appDelegate] in
@@ -81,7 +89,7 @@ struct DeskJigApp: App {
             }
         }
 
-        if !SingleInstanceGuard.isSecondaryInstance {
+        if !SingleInstanceGuard.isSecondaryInstance && !Self.isTestHost {
             Task { @MainActor in
                 sparkleController.probeForUpdates(trigger: .appLaunch)
             }
@@ -127,10 +135,12 @@ struct DeskJigApp: App {
     var body: some Scene {
         // isInserted: a secondary instance (#565) never shows a second menu bar
         // icon and never runs onFirstLoad — it only forwards URLs and exits.
+        // Neither does the app-hosted test host, which must not plant a
+        // menu-bar item next to a real install's.
         MenuBarExtra(
             "Window Monitor",
             systemImage: "macwindow.badge.plus",
-            isInserted: .constant(!SingleInstanceGuard.isSecondaryInstance)
+            isInserted: .constant(!SingleInstanceGuard.isSecondaryInstance && !Self.isTestHost)
         ) {
             MenuBarView()
                 .environment(appDelegate)

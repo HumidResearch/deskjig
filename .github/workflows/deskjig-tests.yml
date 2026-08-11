@@ -1,0 +1,74 @@
+name: DeskJigTests
+
+# Runs the headless-safe DeskJigTests plan (TestPlans/DeskJigTests-Headless.xctestplan)
+# on every PR. The headless plan contains only pure-logic suites and needs no
+# Accessibility grant or GUI session — the test host launches DeskJig.app, but
+# the app makes itself dormant under test (no hotkeys, no menu-bar item, no
+# window), so nothing in this lane touches the runner's UI.
+#
+# The Full plan (real-system integration suites) and the CLI smoke suite are
+# deliberately NOT run here: both need a real, AX-granted user session. They run
+# on a verification host instead.
+#
+# The DeskJigShared package suites run separately and faster in
+# deskjig-package.yml — this workflow covers only the app-hosted bundle.
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+
+concurrency:
+  group: deskjig-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headless-tests:
+    name: DeskJigTests (headless plan)
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Xcode version
+        id: xcode_version
+        run: |
+          xcode-select -p
+          # Capture output first to avoid a broken-pipe crash on Xcode 26.
+          XCODE_OUTPUT=$(xcodebuild -version 2>&1 || true)
+          echo "$XCODE_OUTPUT"
+          VERSION=$(echo "$XCODE_OUTPUT" | head -n1 | awk '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      # test-deskjig.ts resolves SPM packages inside build/DerivedData (same as
+      # build-deskjig.ts), so one DerivedData cache covers both build artifacts
+      # and package checkouts. The key pins the toolchain, the resolved package
+      # versions and both project graphs — the app project and the CLI project
+      # it embeds — because a change to either invalidates the built products.
+      - name: Cache Xcode test build artifacts
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-
+
+      - name: Run headless DeskJigTests plan
+        # --no-signing: PR runners have no signing identity; the test host runs
+        # with the linker's ad-hoc signature, which is fine for unit tests.
+        run: bun scripts/test-deskjig.ts --plan headless --no-signing
+
+      - name: Upload test log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskjig-tests-headless-log
+          path: build/deskjig-tests.headless.log
+          if-no-files-found: ignore

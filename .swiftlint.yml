@@ -1,0 +1,89 @@
+# SwiftLint configuration for DeskJig.
+#
+# Policy: warning-only adoption (see CONTRIBUTING.md "Ground rules").
+# - No rule in this file is configured with `error` severity.
+# - Metric rules (file_length, function_body_length, type_body_length,
+#   cyclomatic_complexity, large_tuple, function_parameter_count,
+#   identifier_name) intentionally omit the `error:` threshold, which
+#   disables the error tier for that rule entirely (SwiftLint falls back
+#   to warning-only for any value above the configured `warning:` level).
+# - `force_cast` / `force_try` default to `severity: error` upstream; they
+#   are downgraded to `warning` here to keep the whole run warning-only.
+# - Do not add blanket `// swiftlint:disable` file/project-wide comments.
+#   Fix or narrowly suppress instead, and prefer raising a threshold here
+#   (with justification) over disabling a rule at the call site.
+
+included:
+  - DeskJig
+  - DeskJigShared/Sources
+  - DeskJigCLI/Sources
+  - DeskJigTests
+  - DeskJigShared/Tests
+
+excluded:
+  - build
+  - .build
+  - .claude
+  - DeskJigShared/.build
+  - DeskJigShared/.swiftpm
+  - DeskJigNativeHost/.swiftpm
+  - "**/*.generated.swift"
+  - DeskJig.xcodeproj
+  - DeskJigShared/Package.swift
+
+opt_in_rules:
+  - force_unwrapping
+
+disabled_rules:
+  # trailing_whitespace alone accounts for ~63% of all violations found
+  # during the initial audit (1441 of 2277) — almost entirely trailing
+  # spaces on blank lines from editor/formatter churn, not meaningful
+  # signal. Disabled so it doesn't drown out everything else; revisit
+  # once the codebase has been run through a whitespace-trimming pass.
+  - trailing_whitespace
+
+analyzer_rules: []
+
+# --- Metric thresholds (generous, warning-only) ---
+# Sized above the current largest offenders in the codebase (e.g.
+# RestorationExecutor.swift ~5.4k lines) so today's code produces
+# warnings, never errors, while still flagging genuinely oversized units.
+
+line_length:
+  warning: 200
+  ignores_urls: true
+  ignores_comments: true
+
+file_length:
+  warning: 6000
+
+type_body_length:
+  warning: 1500
+
+function_body_length:
+  warning: 800
+
+cyclomatic_complexity:
+  warning: 60
+
+large_tuple:
+  warning: 4
+
+function_parameter_count:
+  warning: 10
+
+identifier_name:
+  min_length:
+    warning: 1
+  max_length:
+    warning: 60
+  unallowed_symbols_severity: warning
+  validates_start_with_lowercase: warning
+
+# --- Rules explicitly downgraded to warning (upstream default is error) ---
+
+force_cast:
+  severity: warning
+
+force_try:
+  severity: warning

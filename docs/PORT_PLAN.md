@@ -261,3 +261,165 @@ Fixes, all in this branch:
 3. **`AppIcon.appiconset` still ships Bento's artwork** under a neutral name. Cosmetic, needs a designer, not a porter.
 4. **`bentoMotion 2` inside `DeskJigAnimation-fixed.json`** — register entry, not a code change.
 5. The app-side/package duplicate views flagged by tranche d/f (`BlurBackdrop`, `VisualEffect`, `Animations`, `BlurTransition`, `ViewModifiers`) were left duplicated as instructed; they compile cleanly as separate modules. Dedup is a follow-up ticket.
+
+---
+
+## Wave 5 addendum — tests and CI (checkpoint F)
+
+Wave 5 merges three tranches (`w5-a` app-hosted suites, `w5-b` build/test/logs
+scripts, `w5-c` CLI smoke suite + app↔CLI contract tests), adds the
+`DeskJigTests` target the Wave-4 project deliberately left out, and stands up
+CI. All three tranches merged with no file overlap and no conflicts.
+
+### The test suite is now split across two runners
+
+Wave 2 moved the bulk of the upstream `BentoTests` bundle into the
+`DeskJigShared` package's own test target, where it runs under `swift test`
+with no Xcode project, no app host and no signing. Only the suites that
+genuinely need to be *inside* the app — they `@testable import DeskJig` — stay
+in the app-hosted bundle. That split is the single biggest reason the ported
+test plans look so much shorter than their upstream counterparts, and it is a
+feature: the fast lane no longer waits on an app build.
+
+| Lane | Runner | Contents |
+|---|---|---|
+| `DeskJigShared` package | `swift test --package-path DeskJigShared` | 46 test files → 261 tests in 47 suites — everything that does not need the app |
+| `DeskJigTests` (app-hosted) | `xcodebuild test` via `scripts/test-deskjig.ts` | 12 suites, 114 tests, all `@testable import DeskJig` |
+
+### `DeskJigTests` target
+
+Modelled on the reference `BentoTests` target: `TestTargetID` = the DeskJig app
+target, a `PBXFileSystemSynchronizedRootGroup` over `DeskJigTests/` (no per-file
+references), `TEST_HOST`/`BUNDLE_LOADER` pointed at the built app,
+`MACOSX_DEPLOYMENT_TARGET 14.0` to match the app, and **no `DEVELOPMENT_TEAM`**
+— dropped from the reference so ad-hoc builds work on any machine, exactly as
+Wave 4 did for the app target.
+
+`PRODUCT_BUNDLE_IDENTIFIER = io.deskjig.DeskJigTests`. This one is **not**
+frozen and is deliberately off the legacy register: a test bundle holds no user
+state, anchors no TCC grant and is never installed, so it takes the new
+`io.deskjig.*` namespace and can be renamed freely. The app it hosts in still
+carries the frozen `com.mscontrol.bento`.
+
+One non-obvious build setting was required:
+
+```
+SWIFT_INCLUDE_PATHS = "$(CONFIGURATION_TEMP_DIR)/DeskJig.build/Objects-normal/$(CURRENT_ARCH)"
+```
+
+An **application** target — unlike a framework — emits its `.swiftmodule` into
+its intermediates directory and never installs it to `BUILT_PRODUCTS_DIR`.
+Under the explicit-module build, `@testable import DeskJig` therefore failed
+with *"Unable to resolve module dependency: 'DeskJig'"* even with `TEST_HOST`,
+`BUNDLE_LOADER`, the `PBXTargetDependency` and `TestTargetID` all correctly set.
+Putting the host's `Objects-normal` directory on the import path fixes it; the
+setting is written in terms of `$(CONFIGURATION_TEMP_DIR)` and `$(CURRENT_ARCH)`
+so it survives configuration, architecture and DerivedData-location changes.
+
+### The test host is now dormant under test
+
+An app-hosted bundle launches `DeskJig.app` itself, and DeskJig's startup
+claims **system-wide singletons**: global hotkeys via `KeyboardShortcuts`, the
+Chrome native-messaging port, a menu-bar item, the floating action panel, a
+dock icon (`NSApp.setActivationPolicy(.regular)`), and — because a fresh
+defaults domain reads as "onboarding incomplete" — an auto-opened 1200×800
+window that takes focus mid-run.
+
+On a developer machine that means the test run fights a real DeskJig (or Bento —
+same frozen bundle id) install for resources it cannot share, and steals the
+screen. On CI it makes a nominally headless lane depend on a GUI session.
+
+`AppDelegate.applicationDidFinishLaunching` now returns early under
+`RuntimeEnvironment.isRunningTests()`, and `DeskJigApp` gates the action panel,
+the Sparkle update probe and the `MenuBarExtra` insertion on the same predicate.
+This is the same seam, and the same predicate, that `SingleInstanceGuard`
+already used to no-op in tests. In-process state — the workspace store, logging,
+the constructed view models — is untouched, so suites that read the app's own
+model still see a fully built host. `AppCLIContractTests` proves the host is
+real by asserting `Bundle.main.bundleIdentifier == com.mscontrol.bento`.
+
+### Test-plan pruning
+
+`TestPlans/DeskJigTests-{Full,Headless,CLI}.xctestplan` are retargeted ports of
+the upstream plans. They keep the upstream JSON shape, because
+`scripts/test-deskjig.ts` translates `selectedTests`/`skippedTests` into
+`-only-testing`/`-skip-testing` flags itself (Xcode 26 ignores plan entries for
+Swift Testing suites) — and, per that script's own caveat, each lane uses
+`selectedTests` **or** `skippedTests`, never both.
+
+| Upstream entry | Disposition |
+|---|---|
+| ~60 Headless whitelist entries (`BinaryPartition*`, `Chrome*`, `Fluent*`, `Window*`, `Workspace*`, `Tmux*`, …) | **moved**, not deleted — they are package-side now and run under `swift test` |
+| `AuthenticationManagerSignupNotificationTests`, `LoginViewModelTests`, `WorkspaceSyncManagerMergeTests` | **pruned** — auth and cloud sync were cut from the port |
+| `BinaryPartition*` (3 suites) | **pruned** from the app-hosted plans — package-side |
+| `BentoLogTests` | **renamed** package-side (`DeskJigLogTests`); not app-hosted |
+| CLI plan: `CLIAppAliasCodexTests`, `FluentLauncherFactoryCodexTests`, `FluentXcodeLauncherMatcherTests`, `OpenByPathMatcherCodexTests`, `WorkspaceCreateFromSpecCommandTests` | **pruned** from the app-hosted CLI plan — all five are package-side |
+| Full plan skip `WorkspaceCreateFromSpecCommandTests/presetAndExplicitLayoutsRoundTrip()` | **dropped** — the suite is package-side, so there is nothing app-side to skip |
+| Full plan skip `WorkspaceCreateFromSpecCommandTests/createFromSpecFailsWithoutAuthenticatedUserContext()` | **dropped** — auth-context test, cut with auth |
+| Scheme skip `WorkspaceIntegrationTests/testPrintChromeProfiles()` | **dropped** — the suite has no port |
+| Headless: all 30 enumerated `QuickSwitchViewModelTests/…()` entries | **kept verbatim** — every one survived the port, and the enumeration is kept rather than collapsed to the bare suite name so a future non-headless addition cannot silently join the whitelist |
+
+New, with no upstream counterpart: `AppCLIContractTests` (from tranche `w5-c`)
+appears in **both** the Headless and CLI plans. It is pure-logic and
+headless-safe, and it is the only guard on the frozen app↔CLI storage contract,
+so excluding it from the PR gate would have been the wrong trade.
+
+`DeskJigTests-Full` carries no `selectedTests` and no `skippedTests` at all — it
+runs the whole bundle.
+
+### CI
+
+Three workflows, all `macos-latest`, all first-party actions, **none requiring a
+repository secret, a self-hosted runner or a signing identity**. The reference's
+`warp-macos-26-arm64-12x` runner and `WarpBuilds/cache` are deliberately not
+carried over.
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `deskjig-package.yml` | `pull_request` | `swift build` + `swift test --package-path DeskJigShared`, with a SwiftPM cache keyed on `Package.resolved` + `Package.swift` |
+| `deskjig-tests.yml` | `pull_request` | `bun scripts/test-deskjig.ts --plan headless --no-signing`; DerivedData cache keyed on Xcode version + workspace `Package.resolved` + **both** `project.pbxproj` files; uploads the test log on failure |
+| `swiftlint.yml` | `pull_request` | `swiftlint lint --reporter github-actions-logging`, `continue-on-error: true` — inline annotations, cannot fail a PR |
+
+Neither the Full plan nor `scripts/cli-smoke-test.ts` runs in CI: both need a
+real, Accessibility-granted user session. They belong on a verification host.
+
+### Checkpoint F evidence
+
+- **Headless lane green**, from a clean tree: `114 passed, 0 failed`. The
+  script's runner cross-check agrees exactly — `runner reported 114 (Swift
+  Testing 114 + XCTest 0) == parsed 114` — so no outcome lines were lost to
+  output interleaving and the count is comparable across runs. 114 is the sum
+  of the plan's twelve suites and matches a direct `@Test` count of the source.
+- **CLI lane green**: `4 passed, 0 failed`, cross-check exact.
+- **Package lane green**: `swift test --package-path DeskJigShared` → `Test run
+  with 261 tests in 47 suites passed`. This is what `deskjig-package.yml` runs.
+- The `0 passed, 0 failed` case was observed for real — the first run of this
+  lane hit the `@testable import` failure above and reported exactly that — but
+  it exited non-zero via the build-failure path (`exit code 65`), not via the
+  zero-tests guard. That guard covers the nastier case the failure path misses:
+  a selection filter matching nothing while `xcodebuild` still prints
+  `** TEST SUCCEEDED **`. It remains untriggered, i.e. every plan entry in both
+  lanes resolves to at least one real test.
+- `bun scripts/build-deskjig.ts --target app --no-signing` → `BUILD SUCCEEDED`.
+- `bun scripts/build-deskjig.ts --target cli --no-signing` → `BUILD SUCCEEDED`.
+- `bun scripts/cli-smoke-test.ts --help` → exit 0. The suite itself was **not**
+  run here: it drives the real installed CLI against the logged-in user's live
+  window state, which is a verification-host activity.
+- The Full plan was **never run** on this machine, by instruction — it contains
+  the real-system integration suites.
+
+### Open items for the coordinator
+
+1. **`DeskJig.xcodeproj/project.xcworkspace/` is now gitignored.** Xcode
+   regenerates it on any direct `xcodebuild -project` invocation and resolves
+   only the project's own package references — a strict subset of the canonical
+   pin in `DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved`. Tracking
+   both would give two files that disagree by construction.
+2. **The Full plan has never been executed anywhere.** It is authored and
+   syntactically valid, and its constituent suites all pass under the Headless
+   and CLI lanes, but "run the whole bundle at once" is unproven. First
+   verification-host run is the place to find out.
+3. **`AppCLIContractTests` reads the real defaults suite** (`com.mscontrol.bento`)
+   to prove it was left untouched. That is a read, and writes go to a temp
+   plist — but it does mean the suite's behaviour is not perfectly hermetic on
+   a machine with a real install. Worth a look if it ever flakes.

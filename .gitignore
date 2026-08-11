@@ -14,5 +14,11 @@ xcuserdata/
 *.xcuserdatad/
 DerivedData/
 
+# Xcode regenerates this whenever the project is opened or queried directly
+# (`xcodebuild -project`). It resolves only the project's own package
+# references, so it is a strict subset of the canonical pin that builds
+# actually use: DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved.
+DeskJig.xcodeproj/project.xcworkspace/
+
 # Local, untracked signing overrides (see DeskJigCLI/DeskJigCLI.xcconfig)
 Local.xcconfig

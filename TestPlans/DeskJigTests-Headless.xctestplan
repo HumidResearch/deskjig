@@ -1,0 +1,70 @@
+{
+  "configurations": [
+    {
+      "id": "4C5FD371-DCFA-4C3E-9EC3-857604D19924",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "targetForVariableExpansion": {
+      "containerPath": "container:DeskJig.xcodeproj",
+      "identifier": "DE5C16000000000000010005",
+      "name": "DeskJig"
+    }
+  },
+  "testTargets": [
+    {
+      "_comment": "Whitelist lane. GUI/AX suites are intentionally absent. This plan covers only the app-hosted DeskJigTests bundle — the DeskJigShared package suites (the bulk of the upstream Headless list) now run under `swift test` and are deliberately not enumerated here.",
+      "selectedTests": [
+        "AgentHookInstallerTests",
+        "AppCLIContractTests",
+        "AppDelegateQuickSwitchChromeInjectionTests",
+        "DeskJigTests",
+        "FluentLauncherTimeoutTests",
+        "InlineScreenSelectionStateTests",
+        "LoggingConfigurationVerboseSinkTests",
+        "QuickSwitchViewModelTests/clampCompensationBoundedFallback()",
+        "QuickSwitchViewModelTests/clampCompensationLeftNeighbor()",
+        "QuickSwitchViewModelTests/clampCompensationRightNeighbor()",
+        "QuickSwitchViewModelTests/clampCompensationVerticalNeighbor()",
+        "QuickSwitchViewModelTests/clampedFrameUpsertReplacesPriorWindowState()",
+        "QuickSwitchViewModelTests/directoryFavoriteAPIs()",
+        "QuickSwitchViewModelTests/directoryOverrideAPIs()",
+        "QuickSwitchViewModelTests/launchDoesNotMutateOverrides()",
+        "QuickSwitchViewModelTests/manualImportRecoversLegacyContainerPreferences()",
+        "QuickSwitchViewModelTests/preservesFolderMetadataDuringRewrite()",
+        "QuickSwitchViewModelTests/pruneSkipsEmptyWorkspaceHydration()",
+        "QuickSwitchViewModelTests/quickSwitchSearchEmptyQueryFavoriteOrder()",
+        "QuickSwitchViewModelTests/quickSwitchSearchFavoritesPrecedeScore()",
+        "QuickSwitchViewModelTests/quickSwitchSearchPathTokens()",
+        "QuickSwitchViewModelTests/quickSwitchSearchRankingAndFiltering()",
+        "QuickSwitchViewModelTests/quickSwitchSearchShorterPathPreference()",
+        "QuickSwitchViewModelTests/reloadDoesNotAutoImportLegacyContainerPreferences()",
+        "QuickSwitchViewModelTests/resolveFallsBackToOldestCreatedOverRecent()",
+        "QuickSwitchViewModelTests/resolvePrefersGlobalOverRecent()",
+        "QuickSwitchViewModelTests/resolvePrefersOverride()",
+        "QuickSwitchViewModelTests/rewritesOpenByPathWindows()",
+        "QuickSwitchViewModelTests/rewritesTmuxAndPreservesNonOpenByPathWindows()",
+        "QuickSwitchViewModelTests/rowRedistributionBalancesITermSiblingsAfterXcodeExpansion()",
+        "QuickSwitchViewModelTests/rowRedistributionUsesEffectiveTargetsNotOriginalTargets()",
+        "QuickSwitchViewModelTests/tmuxTerminalKeysStableAcrossLayoutsForSameDirectory()",
+        "QuickSwitchViewModelTests/tmuxTerminalKeysVaryByTargetDirectory()",
+        "QuickSwitchViewModelTests/topRowGhosttyRightEdgeCompensatesForXcodeExpansion()",
+        "QuickSwitchViewModelTests/xcodeExplicitProjectPathRewritesOpenPath()",
+        "QuickSwitchViewModelTests/xcodeNonProjectTargetSkipsXcodeAndPreservesOtherRewrites()",
+        "QuickSwitchViewModelTests/xcodeProjectDirectoryTargetRewritesOpenPath()",
+        "SingleInstanceGuardSelectionTests",
+        "WorkspaceDisplayTopologyTests",
+        "WorkspaceDraftViewModelTests",
+        "WorkspaceLaunchSourcePolicyTests"
+      ],
+      "target": {
+        "containerPath": "container:DeskJig.xcodeproj",
+        "identifier": "DE5C16000000000000010060",
+        "name": "DeskJigTests"
+      }
+    }
+  ],
+  "version": 1
+}

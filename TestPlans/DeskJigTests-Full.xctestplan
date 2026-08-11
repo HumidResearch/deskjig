@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "id": "174CEAE3-5E03-4783-9D7F-EF91B20661F3",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "targetForVariableExpansion": {
+      "containerPath": "container:DeskJig.xcodeproj",
+      "identifier": "DE5C16000000000000010005",
+      "name": "DeskJig"
+    }
+  },
+  "testTargets": [
+    {
+      "_comment": "Everything in the DeskJigTests bundle. No skippedTests: the two upstream skips (WorkspaceCreateFromSpecCommandTests/presetAndExplicitLayoutsRoundTrip and the auth-context case) now live in the DeskJigShared package test target and run under `swift test`, and WorkspaceIntegrationTests/testPrintChromeProfiles did not survive the port. Needs a GUI/AX-capable session only to the extent the app host itself needs one.",
+      "target": {
+        "containerPath": "container:DeskJig.xcodeproj",
+        "identifier": "DE5C16000000000000010060",
+        "name": "DeskJigTests"
+      }
+    }
+  ],
+  "version": 1
+}

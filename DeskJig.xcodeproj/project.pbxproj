@@ -31,6 +31,13 @@
 			remoteGlobalIDString = DE5C16000000000000000005;
 			remoteInfo = deskjig;
 		};
+		DE5C16000000000000010067 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DE5C16000000000000010001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DE5C16000000000000010005;
+			remoteInfo = DeskJig;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +59,7 @@
 		DE5C16000000000000010019 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DeskJig/Configs/Debug.xcconfig; sourceTree = "<group>"; };
 		DE5C16000000000000010020 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = DeskJig/Configs/Release.xcconfig; sourceTree = "<group>"; };
 		DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = DeskJigCLI.xcodeproj; path = DeskJigCLI/DeskJigCLI.xcodeproj; sourceTree = "<group>"; };
+		DE5C16000000000000010061 /* DeskJigTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeskJigTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -75,6 +83,11 @@
 			path = DeskJig;
 			sourceTree = "<group>";
 		};
+		DE5C16000000000000010062 /* DeskJigTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DeskJigTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +104,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DE5C16000000000000010064 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -98,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				DE5C16000000000000010007 /* DeskJig */,
+				DE5C16000000000000010062 /* DeskJigTests */,
 				DE5C16000000000000010019 /* Debug.xcconfig */,
 				DE5C16000000000000010020 /* Release.xcconfig */,
 				DE5C16000000000000010021 /* DeskJigCLI.xcodeproj */,
@@ -110,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				DE5C16000000000000010006 /* DeskJig.app */,
+				DE5C16000000000000010061 /* DeskJigTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -162,6 +184,29 @@
 			productReference = DE5C16000000000000010006 /* DeskJig.app */;
 			productType = "com.apple.product-type.application";
 		};
+		DE5C16000000000000010060 /* DeskJigTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DE5C1600000000000001006A /* Build configuration list for PBXNativeTarget "DeskJigTests" */;
+			buildPhases = (
+				DE5C16000000000000010063 /* Sources */,
+				DE5C16000000000000010064 /* Frameworks */,
+				DE5C16000000000000010065 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DE5C16000000000000010066 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DE5C16000000000000010062 /* DeskJigTests */,
+			);
+			name = DeskJigTests;
+			packageProductDependencies = (
+			);
+			productName = DeskJigTests;
+			productReference = DE5C16000000000000010061 /* DeskJigTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -174,6 +219,10 @@
 				TargetAttributes = {
 					DE5C16000000000000010005 = {
 						CreatedOnToolsVersion = 26.0.1;
+					};
+					DE5C16000000000000010060 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = DE5C16000000000000010005;
 					};
 				};
 			};
@@ -205,6 +254,7 @@
 			projectRoot = "";
 			targets = (
 				DE5C16000000000000010005 /* DeskJig */,
+				DE5C16000000000000010060 /* DeskJigTests */,
 			);
 		};
 /* End PBXProject section */
@@ -227,10 +277,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DE5C16000000000000010065 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		DE5C16000000000000010009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DE5C16000000000000010063 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -244,6 +308,11 @@
 			isa = PBXTargetDependency;
 			name = deskjig;
 			targetProxy = DE5C16000000000000010025 /* PBXContainerItemProxy */;
+		};
+		DE5C16000000000000010066 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DE5C16000000000000010005 /* DeskJig */;
+			targetProxy = DE5C16000000000000010067 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -440,6 +509,52 @@
 			};
 			name = Release;
 		};
+		DE5C16000000000000010068 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.deskjig.DeskJigTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = "$(CONFIGURATION_TEMP_DIR)/DeskJig.build/Objects-normal/$(CURRENT_ARCH)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeskJig.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeskJig";
+			};
+			name = Debug;
+		};
+		DE5C16000000000000010069 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.deskjig.DeskJigTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_INCLUDE_PATHS = "$(CONFIGURATION_TEMP_DIR)/DeskJig.build/Objects-normal/$(CURRENT_ARCH)";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DeskJig.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DeskJig";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -457,6 +572,15 @@
 			buildConfigurations = (
 				DE5C16000000000000010017 /* Debug */,
 				DE5C16000000000000010018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DE5C1600000000000001006A /* Build configuration list for PBXNativeTarget "DeskJigTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DE5C16000000000000010068 /* Debug */,
+				DE5C16000000000000010069 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -118,6 +118,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
 
+        // App-hosted test run (DeskJigTests): the XCTest runner launches this
+        // very app as the test host. Startup work that reaches OUTSIDE the
+        // process — global hotkey registration, the Chrome native-messaging
+        // port, the menu-bar item, the action panel, the auto-opened main
+        // window, the dock icon — has no business running under test: it
+        // contends with a real DeskJig/Bento install for system-wide singletons
+        // and steals focus mid-run. Bail out before any of it. In-process state
+        // (the workspace store, logging) is untouched, so suites that read the
+        // app's own model still see a fully constructed host.
+        //
+        // Same rationale and same predicate as SingleInstanceGuard's no-op in
+        // tests; see RuntimeEnvironment.isRunningTests().
+        if RuntimeEnvironment.isRunningTests() {
+            DeskJigLog.info(.app, "[AppDelegate] Test host launch — skipping hotkeys, native messaging, menu bar and window presentation")
+            return
+        }
+
         // Secondary instance (dual-bundle LaunchServices routing, #565): skip all
         // normal startup — hotkeys and Chrome native messaging would clobber the
         // primary's registrations. Only register for URL events so the launch URL

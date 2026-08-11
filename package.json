@@ -1,0 +1,17 @@
+{
+  "name": "deskjig",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build:app": "bun run scripts/build-deskjig.ts --target app",
+    "build:cli": "bun run scripts/build-deskjig.ts --target cli",
+    "test": "bun run scripts/test-deskjig.ts",
+    "logs": "bun run scripts/deskjig-logs.ts",
+    "lint:swift": "swiftlint lint --quiet",
+    "lint:swift:strict": "swiftlint lint --strict --quiet"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

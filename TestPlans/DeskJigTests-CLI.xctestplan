@@ -1,0 +1,30 @@
+{
+  "configurations": [
+    {
+      "id": "7066EDD9-544C-400C-A946-1B10E097A833",
+      "name": "Default",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "targetForVariableExpansion": {
+      "containerPath": "container:DeskJig.xcodeproj",
+      "identifier": "DE5C16000000000000010005",
+      "name": "DeskJig"
+    }
+  },
+  "testTargets": [
+    {
+      "_comment": "App-side half of the CLI lane: the app<->CLI storage/notification contract asserted from inside the app host. The upstream CLI suites (CLIAppAliasCodexTests, FluentLauncherFactoryCodexTests, FluentXcodeLauncherMatcherTests, OpenByPathMatcherCodexTests, WorkspaceCreateFromSpecCommandTests) moved to the DeskJigShared package test target and run under `swift test`, so they are intentionally absent here.",
+      "selectedTests": [
+        "AppCLIContractTests"
+      ],
+      "target": {
+        "containerPath": "container:DeskJig.xcodeproj",
+        "identifier": "DE5C16000000000000010060",
+        "name": "DeskJigTests"
+      }
+    }
+  ],
+  "version": 1
+}

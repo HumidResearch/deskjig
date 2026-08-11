@@ -1,0 +1,49 @@
+name: DeskJigShared package
+
+# Builds and tests the DeskJigShared SwiftPM package on its own, with no Xcode
+# project, no app host and no code signing. This is the fast lane: it covers the
+# bulk of the suite (everything that does not need to run inside DeskJig.app)
+# and fails in a couple of minutes when a shared-layer change breaks.
+#
+# The app-hosted bundle is a separate workflow (deskjig-tests.yml) because it
+# needs the whole Xcode project graph built first.
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+
+concurrency:
+  group: deskjig-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: swift build + swift test
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Swift version
+        run: swift --version
+
+      # Keyed on the package manifest and its resolved pins: a dependency bump
+      # invalidates the cache, an ordinary source change reuses it.
+      - name: Cache SwiftPM build directory
+        uses: actions/cache@v4
+        with:
+          path: DeskJigShared/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-${{ hashFiles('DeskJigShared/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-
+            ${{ runner.os }}-spm-
+
+      - name: Build package
+        run: swift build --package-path DeskJigShared
+
+      - name: Test package
+        run: swift test --package-path DeskJigShared
