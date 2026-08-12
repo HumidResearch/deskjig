@@ -29,6 +29,10 @@ public class WorkspaceStorageService {
     // MARK: - Load/Save Operations
 
     public func loadWorkspaces() -> [Workspace] {
+        // One-time adoption of `"<uid>.SavedWorkspaces"` written by the
+        // account-scoped predecessor. No-op after the first run (flagged).
+        LegacyStoreAdoption.adoptLegacyWorkspacesIfNeeded(in: defaults)
+
         let workspaces = loadWorkspacesFromCache()
         let normalizedWorkspaces = workspaces.map { normalizeWorkspaceForPersistence($0) }
         logLayoutHealthSummary(for: normalizedWorkspaces, context: "load-cache")

@@ -203,8 +203,26 @@ class SharedWorkspaceManager {
         loadWorkspaces()
     }
 
+    /// The read/write surface the one-time legacy adoption sweep operates on.
+    ///
+    /// Mirrors the two backings `loadWorkspaces()` uses below, so adoption lands
+    /// in whichever store this process actually reads — including the plain plist
+    /// file selected by `BENTOCLI_PREFS_PATH_OVERRIDE`.
+    private var legacyAdoptionStore: LegacyAdoptionStore {
+        if let sharedDefaults {
+            return sharedDefaults
+        }
+        return PlistFileLegacyAdoptionStore(url: prefsPath)
+    }
+
     private func loadWorkspaces() -> [Workspace] {
         var workspaces: [Workspace] = []
+
+        // One-time adoption of `"<uid>.SavedWorkspaces"` written by the
+        // account-scoped predecessor. Same helper the app's
+        // WorkspaceStorageService.loadWorkspaces() runs, so both stacks see the
+        // same store regardless of which one the user opens first.
+        LegacyStoreAdoption.adoptLegacyWorkspacesIfNeeded(in: legacyAdoptionStore)
 
         let cacheKey = workspacesKey
 

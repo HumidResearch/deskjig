@@ -16,6 +16,15 @@ final class SimpleOnboardingViewModel {
     var isPresented: Bool = false
     private(set) var currentStage: Stage = .intro
 
+    /// Completion state, mirrored into `UserDefaults` under ``persistenceKey``.
+    ///
+    /// Stored (not computed off `UserDefaults`) on purpose: the settings window
+    /// gates navigation on `!isCompleted` and re-presents onboarding whenever
+    /// `isPresented` drops while the gate is active. A computed defaults read is
+    /// invisible to `@Observable`, so recording completion never invalidated the
+    /// SwiftUI graph and the gate could still be evaluated against stale state.
+    private(set) var isCompleted: Bool = false
+
     // MARK: - Configuration
 
     private static let basePersistenceKey = "SimpleOnboarding.Completed"
@@ -39,6 +48,17 @@ final class SimpleOnboardingViewModel {
     init(userDefaults: UserDefaults = .standard, progressStore: TutorialProgressStore = .shared) {
         self.userDefaults = userDefaults
         self.progressStore = progressStore
+
+        // Installs upgraded from the account-scoped predecessor recorded completion
+        // under `"<uid>.SimpleOnboarding.Completed"`. Without this one-time sweep
+        // those users are shown first-run onboarding again.
+        LegacyStoreAdoption.adoptLegacyCompletionFlagIfNeeded(
+            baseKey: Self.basePersistenceKey,
+            flagKey: LegacyStoreAdoption.onboardingAdoptionCompletedKey,
+            in: userDefaults
+        )
+        self.isCompleted = userDefaults.bool(forKey: Self.basePersistenceKey)
+
         setupObservers()
     }
 
@@ -127,11 +147,15 @@ final class SimpleOnboardingViewModel {
         DeskJigLog.info(.app, "SimpleOnboarding: Skipped onboarding")
     }
 
-    // MARK: - State
-
-    var isCompleted: Bool {
-        userDefaults.bool(forKey: persistenceKey)
+    /// Close button (X). Records completion before hiding, because the settings
+    /// window's onboarding gate re-presents the overlay whenever it drops while
+    /// `isCompleted` is still false.
+    func dismissOnboarding() {
+        completeOnboarding()
+        DeskJigLog.info(.app, "SimpleOnboarding: Dismissed onboarding via close button")
     }
+
+    // MARK: - State
 
     var canGoBack: Bool {
         currentStage.previous != nil
@@ -145,11 +169,16 @@ final class SimpleOnboardingViewModel {
 
     private func markCompleted() {
         userDefaults.set(true, forKey: persistenceKey)
+        isCompleted = true
         progressStore.markSimpleOnboardingCompleted()
     }
 
     private func resetProgress() {
         userDefaults.removeObject(forKey: persistenceKey)
+        // Keep the adoption flag set: a DEBUG reset must survive relaunch, and an
+        // unset flag would let the legacy per-user copy re-complete onboarding.
+        userDefaults.set(true, forKey: LegacyStoreAdoption.onboardingAdoptionCompletedKey)
+        isCompleted = false
         DeskJigLog.info(.app, "SimpleOnboarding: Reset onboarding progress")
     }
 

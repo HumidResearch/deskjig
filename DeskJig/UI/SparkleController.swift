@@ -59,20 +59,39 @@ final class SparkleController: ObservableObject {
         self.updaterDelegate = SparkleUpdateDelegate(appDelegate: appDelegate)
         self.userDriverDelegate = SparkleUserDriverDelegate()
 
+        // Placeholder state must be resolved from the bundle BEFORE construction.
+        // With `startingUpdater: true` the controller starts the updater inside
+        // this initializer; against the placeholder feed (unresolvable host, empty
+        // SUPublicEDKey) the start itself fails and SPUStandardUpdaterController
+        // presents its own "The updater failed to start" alert — an app-modal
+        // dialog raised before any of our per-path guards can run.
+        let isPlaceholderFeed = Self.bundleFeedURLIsPlaceholder()
+        self.isPlaceholderFeed = isPlaceholderFeed
+
         // Initialize updater controller with delegates
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: !isPlaceholderFeed,
             updaterDelegate: updaterDelegate,
             userDriverDelegate: userDriverDelegate
         )
+
+        updaterDelegate.stateSink = self
+        userDriverDelegate.stateSink = self
+
+        guard !isPlaceholderFeed else {
+            // Never-started updater: leave `canCheckForUpdates` false rather than
+            // observing an updater that has no session, and skip the automatic-check
+            // configuration (which would touch the same unstarted updater).
+            canCheckForUpdates = false
+            DeskJigLog.info(.app, "SparkleController initialized with updater NOT started: placeholder feed URL (no release pipeline yet); all update paths suppressed")
+            return
+        }
 
         updaterController.updater
             .publisher(for: \.canCheckForUpdates)
             .receive(on: DispatchQueue.main)
             .assign(to: &$canCheckForUpdates)
 
-        updaterDelegate.stateSink = self
-        userDriverDelegate.stateSink = self
         configureAlwaysOnAutomaticChecks()
 
         // Log the initial state
@@ -89,13 +108,24 @@ final class SparkleController: ObservableObject {
         self.init(appDelegate: NSApplication.shared.delegate as? AppDelegate)
     }
 
+    /// Reads `SUFeedURL` straight from the bundle, without an updater instance.
+    ///
+    /// A missing, empty or `example.invalid` feed is the placeholder: checking
+    /// against it can only ever fail. Resolved before `SPUStandardUpdaterController`
+    /// exists so the decision can gate `startingUpdater:` itself.
+    private static func bundleFeedURLIsPlaceholder() -> Bool {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
+            return true
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let host = URL(string: trimmed)?.host else { return true }
+        return host.hasSuffix("example.invalid")
+    }
 
     /// True while the Info.plist ships the placeholder feed (no release pipeline yet).
-    /// Checking against it can only ever fail, so every check path is suppressed to
-    /// keep dev builds from surfacing Sparkle's "Unable to Check For Updates" alert.
-    private var isPlaceholderFeed: Bool {
-        updaterController.updater.feedURL?.host?.hasSuffix("example.invalid") ?? true
-    }
+    /// Every check path stays suppressed behind this as a second layer, so a real
+    /// feed in M2 restores full behavior with no further changes here.
+    private let isPlaceholderFeed: Bool
 
     func checkForUpdates() {
         guard !isPlaceholderFeed else {

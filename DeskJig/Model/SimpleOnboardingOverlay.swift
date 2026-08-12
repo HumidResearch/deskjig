@@ -54,7 +54,12 @@ struct SimpleOnboardingOverlay: View {
                     )
 
                     Button {
-                        viewModel.closeOnboarding()
+                        // Dismissing must record completion. While onboarding is
+                        // incomplete the settings window pins navigation to
+                        // Tutorials and re-presents the overlay the moment
+                        // `isPresented` drops, so a close that only hid the
+                        // overlay could never actually dismiss it.
+                        viewModel.dismissOnboarding()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .semibold))

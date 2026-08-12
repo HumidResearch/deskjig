@@ -1,14 +1,32 @@
 //  WorkspaceStorageServiceTests.swift
 //  DeskJigSharedTests
 
+import Foundation
 import Testing
 import CoreGraphics
 @testable import DeskJigShared
 
 struct WorkspaceStorageServiceTests {
 
+    /// A `WorkspaceStorageService` bound to a throwaway `UserDefaults` suite.
+    ///
+    /// `WorkspaceStorageService()` defaults to the real `com.mscontrol.bento`
+    /// suite, and `updateWorkspaceMetadata` / `updateWorkspaceDisplayMetadata`
+    /// persist through `saveWorkspaces` — so the default init made these tests
+    /// overwrite the developer's own saved workspaces with a fixture. Every case
+    /// below writes into a scratch domain instead.
+    private static func makeScratchService() throws -> (service: WorkspaceStorageService, teardown: () -> Void) {
+        let suiteName = "com.mscontrol.bento.tests.storage-service.\(UUID().uuidString)"
+        #expect(suiteName != BundleIdentity.defaultsSuiteName)
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        return (
+            WorkspaceStorageService(defaults: defaults),
+            { defaults.removePersistentDomain(forName: suiteName) }
+        )
+    }
+
     @Test("Workspace migration reorders stacked displays and rewrites window indices")
-    func migrationReordersStackedDisplaysAndRemapsWindows() {
+    func migrationReordersStackedDisplaysAndRemapsWindows() throws {
         let lower = WorkspaceScreen(
             displayID: 7,
             name: "Lower",
@@ -65,7 +83,8 @@ struct WorkspaceStorageServiceTests {
             screens: [lower, upper, right]
         )
 
-        let service = WorkspaceStorageService()
+        let (service, teardown) = try Self.makeScratchService()
+        defer { teardown() }
         let migrated = service.migrateWorkspaceScreenData(workspace)
 
         #expect(migrated.screens?.map(\.displayID) == [5, 7, 3])
@@ -73,7 +92,7 @@ struct WorkspaceStorageServiceTests {
     }
 
     @Test("Display metadata update replaces screens and slots without changing windows")
-    func updateWorkspaceDisplayMetadataOnlyMutatesDisplayMetadata() {
+    func updateWorkspaceDisplayMetadataOnlyMutatesDisplayMetadata() throws {
         let originalWindow = WorkspaceWindow(
             id: UUID(),
             bundleIdentifier: "com.example.app",
@@ -121,7 +140,8 @@ struct WorkspaceStorageServiceTests {
             )
         )
 
-        let service = WorkspaceStorageService()
+        let (service, teardown) = try Self.makeScratchService()
+        defer { teardown() }
         let updatedWorkspaces = service.updateWorkspaceDisplayMetadata(
             workspaces: [originalWorkspace],
             workspaceID: originalWorkspace.id,
@@ -140,14 +160,15 @@ struct WorkspaceStorageServiceTests {
     }
 
     @Test("Display metadata update is a no-op when workspace is missing")
-    func updateWorkspaceDisplayMetadataNoOpWhenWorkspaceMissing() {
+    func updateWorkspaceDisplayMetadataNoOpWhenWorkspaceMissing() throws {
         let workspace = Workspace(
             id: UUID(),
             name: "Writing",
             workspaceWindows: []
         )
 
-        let service = WorkspaceStorageService()
+        let (service, teardown) = try Self.makeScratchService()
+        defer { teardown() }
         let updatedWorkspaces = service.updateWorkspaceDisplayMetadata(
             workspaces: [],
             workspaceID: workspace.id,
@@ -159,7 +180,7 @@ struct WorkspaceStorageServiceTests {
     }
 
     @Test("Workspace metadata edits preserve display slots and screen assignments")
-    func metadataEditsPreserveDisplayMetadata() {
+    func metadataEditsPreserveDisplayMetadata() throws {
         let slot = WorkspaceDisplaySlot(
             id: UUID(),
             title: "Monitor 1",
@@ -188,7 +209,8 @@ struct WorkspaceStorageServiceTests {
             displaySlots: [slot]
         )
 
-        let service = WorkspaceStorageService()
+        let (service, teardown) = try Self.makeScratchService()
+        defer { teardown() }
         let updated = service.updateWorkspaceMetadata(
             workspaces: [workspace],
             workspace: workspace,

@@ -30,8 +30,10 @@ struct WorkspaceCreateFromSpecCommandTests {
             environment: context.environment
         )
         #expect(create.status == 0)
-        #expect(try context.workspaceNames(forCacheKey: context.scopedCacheKey) == [workspaceName])
-        #expect(try context.workspaceNames(forCacheKey: "SavedWorkspaces").isEmpty)
+        // The shipped store is unprefixed: the account-scoped `"<uid>.SavedWorkspaces"`
+        // key the commercial predecessor wrote no longer exists on the write path.
+        #expect(try context.workspaceNames(forCacheKey: BundleIdentity.savedWorkspacesKey) == [workspaceName])
+        #expect(try context.workspaceNames(forCacheKey: "\(context.retiredUserID).SavedWorkspaces").isEmpty)
 
         let info = try DeskJigCLIInvocationTestSupport.run(
             ["workspace", "info", workspaceName, "--format", "json"],
@@ -69,7 +71,7 @@ struct WorkspaceCreateFromSpecCommandTests {
             environment: context.environment
         )
         #expect(info.status == 0)
-        #expect(try context.workspaceNames(forCacheKey: context.scopedCacheKey) == [workspaceName])
+        #expect(try context.workspaceNames(forCacheKey: BundleIdentity.savedWorkspacesKey) == [workspaceName])
     }
 
     @Test("create-from-spec rejects duplicate names unless replaceExisting is true")
@@ -249,7 +251,7 @@ struct WorkspaceCreateFromSpecCommandTests {
         withExtendedLifetime(observer) {}
     }
 
-    @Test("quick-switch workspace override includes workspace_id from per-user cache")
+    @Test("quick-switch workspace override includes workspace_id from the shared cache")
     func quickSwitchWorkspaceOverrideIncludesWorkspaceID() throws {
         let context = try TestContext()
         let workspaceName = "Quick Switch Shared Layout"
@@ -290,7 +292,10 @@ struct WorkspaceCreateFromSpecCommandTests {
 
 private extension WorkspaceCreateFromSpecCommandTests {
     struct TestContext {
-        let userID = "test-user-id"
+        /// Retained only to assert the *absence* of an account-scoped key.
+        /// `BENTOCLI_USER_ID_OVERRIDE` is dead in shipping code — nothing reads it —
+        /// so it is no longer exported into the child process's environment.
+        let retiredUserID = "test-user-id"
         let rootURL: URL
         let prefsURL: URL
         let specFileURL: URL
@@ -306,13 +311,8 @@ private extension WorkspaceCreateFromSpecCommandTests {
 
         var projectPath: String { projectURL.path }
 
-        var scopedCacheKey: String { "\(userID).SavedWorkspaces" }
-
         var environment: [String: String] {
-            [
-                "BENTOCLI_PREFS_PATH_OVERRIDE": prefsURL.path,
-                "BENTOCLI_USER_ID_OVERRIDE": userID
-            ]
+            ["BENTOCLI_PREFS_PATH_OVERRIDE": prefsURL.path]
         }
 
         func parseJSON(_ string: String) throws -> [String: Any] {
