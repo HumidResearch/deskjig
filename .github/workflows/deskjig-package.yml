@@ -24,6 +24,11 @@ concurrency:
   group: deskjig-package-${{ github.ref }}
   cancel-in-progress: true
 
+# The repo default is already read-only; stated here so a future settings
+# change can't silently widen this workflow's token.
+permissions:
+  contents: read
+
 jobs:
   package:
     name: swift build + swift test
@@ -38,7 +43,7 @@ jobs:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Swift version
         run: swift --version
@@ -46,7 +51,7 @@ jobs:
       # Keyed on the package manifest and its resolved pins: a dependency bump
       # invalidates the cache, an ordinary source change reuses it.
       - name: Cache SwiftPM build directory
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: DeskJigShared/.build
           key: ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-${{ hashFiles('DeskJigShared/Package.swift') }}
