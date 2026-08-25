@@ -82,4 +82,7 @@ runs:
           echo "team_id=$TEAM_ID"
           echo "keychain=$KEYCHAIN_PATH"
         } >> "$GITHUB_OUTPUT"
-        echo "Signing as: $IDENTITY (team $TEAM_ID)"
+        # The identity string (company name + team id) is technically public — it
+        # is on every shipped binary's signature — but there is no reason to put
+        # it in run logs; downstream steps read it from the step outputs.
+        echo "Signing identity imported into ephemeral keychain"

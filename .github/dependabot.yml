@@ -1,0 +1,9 @@
+# Keeps the SHA-pinned actions in .github/workflows fresh: the github-actions
+# ecosystem updates the pinned SHA in place and bumps the trailing "# vN"
+# comment, so pinning never goes stale.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
