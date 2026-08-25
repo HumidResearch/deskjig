@@ -1,0 +1,115 @@
+name: Actions smoke
+
+# Exercises the artifact and cache actions the release pipeline depends on,
+# because the PR lanes barely touch them (the tests lane only uploads a log on
+# failure, and release.yml's download path runs only on tags). Runs on PRs
+# that touch workflow files — i.e. exactly when an action version bumps — and
+# on demand via workflow_dispatch. Ubuntu: cheap, and the artifact/cache
+# services are runner-OS-agnostic.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  workflow_dispatch:
+
+concurrency:
+  group: actions-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-roundtrip:
+    name: upload/download round-trip (overwrite semantics)
+    # FORK GUARD: keeps the workflow from running in forks' own repositories
+    # (guarding on the fork bit, not a repo name a rename would silently break).
+    # PRs from forks INTO this repo still run (the event's repository is the base).
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create first payload
+        run: |
+          mkdir -p out
+          echo "generation-1" > out/payload.txt
+
+      - name: Upload (first)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-artifact
+          path: out/payload.txt
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+
+      # The release pipeline reruns jobs with `overwrite: true`; prove a
+      # same-name re-upload replaces content rather than erroring or dangling.
+      - name: Overwrite with second payload
+        run: echo "generation-2" > out/payload.txt
+
+      - name: Upload (overwrite)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-artifact
+          path: out/payload.txt
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+
+      - name: Download by name
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: smoke-artifact
+          path: fetched
+
+      - name: Verify content is the overwritten generation
+        run: |
+          set -euo pipefail
+          ls -la fetched
+          [ "$(cat fetched/payload.txt)" = "generation-2" ]
+          [ "$(find fetched -type f | wc -l)" -eq 1 ]
+
+  cache-save:
+    name: cache save
+    if: ${{ !github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create cacheable content
+        run: |
+          mkdir -p cachedir
+          echo "cached-${{ github.run_id }}" > cachedir/marker.txt
+
+      - name: Save cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: cachedir
+          key: actions-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+
+  cache-restore:
+    name: cache restore (same run)
+    if: ${{ !github.event.repository.fork }}
+    needs: cache-save
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Restore cache
+        id: restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: cachedir
+          key: actions-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # The release/test lanes key their save steps off cache-primary-key and
+      # branch on cache-hit; both outputs must keep their v4 shapes.
+      - name: Verify hit, content, and outputs
+        env:
+          HIT: ${{ steps.restore.outputs.cache-hit }}
+          PRIMARY_KEY: ${{ steps.restore.outputs.cache-primary-key }}
+        run: |
+          set -euo pipefail
+          [ "$HIT" = "true" ]
+          [ -n "$PRIMARY_KEY" ]
+          [ "$(cat cachedir/marker.txt)" = "cached-${{ github.run_id }}" ]

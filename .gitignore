@@ -29,3 +29,6 @@ Local.xcconfig
 # Coverage traces dropped by instrumented binaries run from the repo root
 *.profraw
 .DS_Store
+
+# Claude Code worktrees/session droppings
+.claude/worktrees/
