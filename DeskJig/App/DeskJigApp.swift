@@ -366,7 +366,8 @@ private extension DeskJigApp {
         @Bindable var simpleOnboardingVM: SimpleOnboardingViewModel
 
         #if DEBUG
-        @State private var showingSplash = false  // Skip splash animation in debug builds
+        // Skip the splash in debug builds; pass `-showSplash` as a launch argument to see it.
+        @State private var showingSplash = ProcessInfo.processInfo.arguments.contains("-showSplash")
         #else
         @State private var showingSplash = true
         #endif
@@ -402,7 +403,8 @@ private extension DeskJigApp {
             }
             .overlay {
                 if showingSplash {
-                    LottieSplashView {
+                    // Swap for `LottieSplashView` to fall back to the pre-rendered video splash.
+                    BlockAssemblySplashView {
                         showingSplash = false
                     }
                     .transition(.opacity)
