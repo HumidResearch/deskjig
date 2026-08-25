@@ -411,10 +411,15 @@ jobs:
             ls build/SourcePackages || true
             exit 1
           fi
-          # Exactly one match, scoped to Sparkle's bundle: a restore-key cache
-          # hit could leave a second, stale sign_update lying around, and
-          # silently exporting "whichever sorts first" must not happen.
-          MATCHES=$(find "$ARTIFACTS_DIR" -type f -name sign_update -perm -u+x -path "*[Ss]parkle*" | sort)
+          # Exactly one match, pinned to Sparkle's EdDSA tool at bin/sign_update.
+          # Two reasons for the strictness: the bundle ALSO ships a legacy DSA
+          # script at bin/old_dsa_scripts/sign_update (signing the feed with
+          # that would be garbage — the old "first find hit wins" logic was one
+          # traversal-order change away from doing it), and a restore-key cache
+          # hit could leave a second, stale copy lying around.
+          # (-not -path …/extract/…: SwiftPM keeps a transient extraction
+          # staging tree that can hold a second copy of the whole bundle.)
+          MATCHES=$(find "$ARTIFACTS_DIR" -type f -perm -u+x -path "*/Sparkle/bin/sign_update" -not -path "*/extract/*" | sort)
           COUNT=$(printf '%s' "$MATCHES" | grep -c . || true)
           if [[ "$COUNT" -ne 1 ]]; then
             echo "::error::Expected exactly one Sparkle sign_update under $ARTIFACTS_DIR, found $COUNT."
