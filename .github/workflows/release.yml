@@ -274,7 +274,9 @@ jobs:
         env:
           SPM_HIT: ${{ steps.cache_spm.outputs.cache-hit }}
         run: |
-          SPM_SIZE=$(du -sh build/SourcePackages 2>/dev/null | cut -f1)
+          # (du || true) so a missing directory on a cold cache doesn't trip
+          # the runner shell's pipefail and kill the step.
+          SPM_SIZE=$( (du -sh build/SourcePackages 2>/dev/null || true) | cut -f1 )
           if [[ "$SPM_HIT" == "true" ]]; then STATE="hit"
           elif [[ -d build/SourcePackages && -n "$(ls -A build/SourcePackages 2>/dev/null)" ]]; then STATE="partial-hit (restore-key)"
           else STATE="miss"

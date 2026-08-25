@@ -12,6 +12,13 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Also on main so the default branch always holds a warm cache for new PR
+  # branches to restore from (PR-run caches are scoped to their merge ref).
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
 
 concurrency:
   group: deskjig-package-${{ github.ref }}
