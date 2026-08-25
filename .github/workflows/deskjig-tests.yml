@@ -25,9 +25,10 @@ concurrency:
 jobs:
   headless-tests:
     name: DeskJigTests (headless plan)
-    # FORK GUARD: keeps the workflow from running in forks' own repositories.
-    # PRs from forks INTO this repo still run (github.repository is the base).
-    if: github.repository == 'HumidResearch/deskjig'
+    # FORK GUARD: keeps the workflow from running in forks' own repositories
+    # (guarding on the fork bit, not a repo name a rename would silently break).
+    # PRs from forks INTO this repo still run (the event's repository is the base).
+    if: ${{ !github.event.repository.fork }}
     runs-on: macos-latest
     timeout-minutes: 45
     defaults:
@@ -57,7 +58,9 @@ jobs:
       # tree as dirty and a restored DerivedData cache buys nothing. Rewriting
       # mtimes from commit history makes incremental builds actually fire.
       - name: Restore file modification times
-        uses: chetan/git-restore-mtime-action@v2
+        # Pinned by commit SHA (v2.3): third-party action, mutable tags are a
+        # supply-chain hole.
+        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3
 
       # Companion to the mtime restore: without it Xcode invalidates on the new
       # inode numbers the cache extraction produced, mtimes notwithstanding.
@@ -71,9 +74,12 @@ jobs:
       # DerivedData (--cloned-source-packages below) so an edit to either
       # project file rebuilds objects without also throwing away all seven
       # package checkouts — those only churn when Package.resolved does.
-      - name: Cache SwiftPM checkouts
+      # restore/save are split (instead of plain actions/cache) so the save
+      # runs even when the test step fails: a failed run that compiled 90% of
+      # a cold cache still leaves the rerun warm — the whole point of caching.
+      - name: Restore SwiftPM checkouts cache
         id: cache_spm
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
@@ -85,9 +91,9 @@ jobs:
       # project graphs — the app project and the CLI project it embeds —
       # because a change to any invalidates the built products. The `-v2`
       # purpose marks the post-split layout (SourcePackages no longer inside).
-      - name: Cache Xcode test build artifacts
+      - name: Restore Xcode test build cache
         id: cache_derived_data
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: build/DerivedData
           key: ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
@@ -110,12 +116,14 @@ jobs:
             else echo "miss"
             fi
           }
+          SPM_SIZE=$(du -sh build/SourcePackages 2>/dev/null | cut -f1)
+          DD_SIZE=$(du -sh build/DerivedData 2>/dev/null | cut -f1)
           {
             echo "### Cache"
             echo "| cache | state | size |"
             echo "| --- | --- | --- |"
-            echo "| SwiftPM checkouts | $(state "$SPM_HIT" build/SourcePackages) | $(du -sh build/SourcePackages 2>/dev/null | cut -f1 || echo 0) |"
-            echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | $(du -sh build/DerivedData 2>/dev/null | cut -f1 || echo 0) |"
+            echo "| SwiftPM checkouts | $(state "$SPM_HIT" build/SourcePackages) | ${SPM_SIZE:-0} |"
+            echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | ${DD_SIZE:-0} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run headless DeskJigTests plan
@@ -124,6 +132,22 @@ jobs:
         run: |
           bun scripts/test-deskjig.ts --plan headless --no-signing \
             --cloned-source-packages build/SourcePackages
+
+      # Saved even when the test step failed (see the restore comment). Skipped
+      # on an exact primary-key hit — the entry already exists and is immutable.
+      - name: Save SwiftPM checkouts cache
+        if: always() && steps.cache_spm.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ steps.cache_spm.outputs.cache-primary-key }}
+
+      - name: Save Xcode test build cache
+        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/DerivedData
+          key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
 
       - name: Upload test log on failure
         if: failure()

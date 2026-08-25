@@ -380,7 +380,7 @@ carried over.
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `deskjig-package.yml` | `pull_request` | `swift build` + `swift test --package-path DeskJigShared`, with a SwiftPM cache keyed on `Package.resolved` + `Package.swift` |
-| `deskjig-tests.yml` | `pull_request` | `bun scripts/test-deskjig.ts --plan headless --no-signing`; DerivedData cache keyed on Xcode version + workspace `Package.resolved` + **both** `project.pbxproj` files; uploads the test log on failure |
+| `deskjig-tests.yml` | `pull_request` | `bun scripts/test-deskjig.ts --plan headless --no-signing --cloned-source-packages build/SourcePackages`; two independent caches — SwiftPM checkouts keyed on Xcode version + workspace `Package.resolved`, and DerivedData keyed additionally on **both** `project.pbxproj` files — plus mtime restore so incremental builds fire; uploads the test log on failure |
 | `swiftlint.yml` | `pull_request` | `swiftlint lint --reporter github-actions-logging`, `continue-on-error: true` — inline annotations, cannot fail a PR |
 
 Neither the Full plan nor `scripts/cli-smoke-test.ts` runs in CI: both need a

@@ -13,9 +13,10 @@ concurrency:
 jobs:
   swiftlint:
     name: SwiftLint (report-only)
-    # FORK GUARD: keeps the workflow from running in forks' own repositories.
-    # PRs from forks INTO this repo still run (github.repository is the base).
-    if: github.repository == 'HumidResearch/deskjig'
+    # FORK GUARD: keeps the workflow from running in forks' own repositories
+    # (guarding on the fork bit, not a repo name a rename would silently break).
+    # PRs from forks INTO this repo still run (the event's repository is the base).
+    if: ${{ !github.event.repository.fork }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
