@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- Final entitlements applied by the release workflow's re-sign step.
+
+     Kept deliberately explicit (rather than trusting what xcodebuild composed)
+     because a plain `xcodebuild build` also injects com.apple.security.get-task-allow,
+     which notarization rejects. This file is the reviewed allowlist:
+       - automation.apple-events: Chrome/AppleScript window + tab restoration
+       - network.client: Sparkle update checks and downloads (the app's only
+         sanctioned egress — see the no-egress policy in issue #18)
+     Anything not listed here is stripped from the shipped app. -->
+<dict>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
+</plist>

@@ -225,6 +225,44 @@ jobs:
             "OTHER_CODE_SIGN_FLAGS=--timestamp" \
             PROVISIONING_PROFILE_SPECIFIER=""
 
+      # xcodebuild leaves two things notarization rejects (verified empirically
+      # on the Studio, 2026-08-25 — submissions 9d8848b7/ee76a20f came back
+      # Invalid for exactly these):
+      #   1. Sparkle's nested executables (both XPC services, Autoupdate,
+      #      Updater.app) keep Sparkle's own signature — no Developer ID, no
+      #      secure timestamp.
+      #   2. A plain `xcodebuild build` injects com.apple.security.get-task-allow
+      #      into the app signature (Xcode's archive-export flow strips it; we
+      #      don't archive).
+      # Re-sign inside-out with our identity + timestamp, then finalize the app
+      # with the explicit, reviewed entitlements allowlist.
+      - name: Deep re-sign Sparkle internals and finalize entitlements
+        env:
+          SIGN_IDENTITY: ${{ steps.signing.outputs.identity }}
+        run: |
+          set -euo pipefail
+          APP="build/DerivedData/Build/Products/Release/DeskJig.app"
+          SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+
+          for TARGET in \
+            "$SPARKLE/XPCServices/Downloader.xpc" \
+            "$SPARKLE/XPCServices/Installer.xpc" \
+            "$SPARKLE/Autoupdate" \
+            "$SPARKLE/Updater.app"
+          do
+            codesign --force --sign "$SIGN_IDENTITY" --timestamp -o runtime "$TARGET"
+          done
+          codesign --force --sign "$SIGN_IDENTITY" --timestamp -o runtime "$APP/Contents/Frameworks/Sparkle.framework"
+          codesign --force --sign "$SIGN_IDENTITY" --timestamp -o runtime "$APP/Contents/Helpers/deskjig"
+          codesign --force --sign "$SIGN_IDENTITY" --timestamp -o runtime \
+            --entitlements DeskJig/DeskJig-Release.entitlements "$APP"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          if codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q get-task-allow; then
+            echo "::error::get-task-allow survived the entitlement rewrite."
+            exit 1
+          fi
+
       - name: Verify build output
         id: app
         env:
