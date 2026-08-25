@@ -139,7 +139,7 @@ struct DeskJigApp: App {
         // menu-bar item next to a real install's.
         MenuBarExtra(
             "Window Monitor",
-            systemImage: "macwindow.badge.plus",
+            image: "MenuBarIconTemplate",
             isInserted: .constant(!SingleInstanceGuard.isSecondaryInstance && !Self.isTestHost)
         ) {
             MenuBarView()
