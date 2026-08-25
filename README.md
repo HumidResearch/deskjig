@@ -4,6 +4,16 @@ DeskJig is a macOS workspace manager: it saves the full arrangement of your work
 
 > **Status: under active conversion to open source.** DeskJig was previously a commercial product (Bento). The account, subscription, and cloud-sync systems are being removed in favor of a fully local, no-server app. Expect scaffolding, legacy names (`Bento`, `bentoctl`, `com.mscontrol.bento`), and rough edges while the conversion lands. Nothing in this app requires a server or an account.
 
+## Download
+
+[![Latest release](https://img.shields.io/github/v/release/armynante/deskjig?label=download&sort=semver)](https://github.com/armynante/deskjig/releases/latest)
+
+Grab the latest signed, notarized DMG from the
+**[releases page](https://github.com/armynante/deskjig/releases/latest)**, open
+it, and drag DeskJig to Applications. macOS 14 or later, Apple silicon or Intel.
+
+DeskJig updates itself from there on (Sparkle, **Settings → Check for Updates**).
+
 ## Features
 
 - **Workspaces** — capture every window on every monitor as a named layout; restore with one action.
@@ -19,8 +29,8 @@ Requires Xcode (macOS 15+ toolchain) and [Bun](https://bun.sh).
 
 ```bash
 bun install
-bun run build:bento-app     # the app
-bun run build:bentoctl      # the CLI
+bun run build:app     # the app
+bun run build:cli     # the CLI
 ```
 
 Build output lands under `build/`; the build scripts wrap `xcodebuild` and summarize errors.
@@ -31,7 +41,14 @@ Build output lands under `build/`; the build scripts wrap `xcodebuild` and summa
 bun scripts/cli-smoke-test.ts   # read-only CLI smoke suite (requires built binaries)
 ```
 
-Unit tests live in `BentoTests/` (Swift Testing) and run via the Xcode test plans in `TestPlans/`.
+Unit tests live in `DeskJigTests/` (Swift Testing) and run via the Xcode test plans in `TestPlans/`.
+
+## Releasing
+
+Releases are cut by pushing a `v*` tag; GitHub Actions builds, signs, notarizes
+and publishes the DMG plus the Sparkle appcast. The runbook — including the
+one-time certificate, notarization-key and Sparkle-keypair setup — is
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 

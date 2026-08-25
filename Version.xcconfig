@@ -1,0 +1,26 @@
+// Version.xcconfig
+//
+// Single source of truth for DeskJig's version numbers.
+//
+// Included by every project that ships a versioned product:
+//   - DeskJig/Configs/{Debug,Release}.xcconfig  (the app, project level)
+//   - DeskJigCLI/DeskJigCLI.xcconfig            (the `deskjig` command-line tool)
+//
+// Both values end up in the built products:
+//   MARKETING_VERSION       -> CFBundleShortVersionString (what users see,
+//                              what `deskjig --version` prints, and the
+//                              appcast's sparkle:shortVersionString)
+//   CURRENT_PROJECT_VERSION -> CFBundleVersion (what Sparkle actually compares
+//                              to decide whether an update is newer, and the
+//                              appcast's sparkle:version)
+//
+// RELEASING RULES (see docs/RELEASING.md):
+//   1. MARKETING_VERSION must equal the git tag with the leading `v` stripped
+//      (tag `v1.0.0` -> `1.0.0`). The release workflow fails the build otherwise.
+//   2. CURRENT_PROJECT_VERSION must be a plain integer and must STRICTLY
+//      INCREASE on every release. If it does not, Sparkle sees the new build as
+//      "not newer" and no installed copy ever updates. The release workflow
+//      compares against the published appcast and fails if it did not grow.
+
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1

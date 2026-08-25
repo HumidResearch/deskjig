@@ -8,6 +8,9 @@
 .build/
 .port-progress.txt
 
+# Release artifacts staged by .github/workflows/release.yml (DMG + appcast)
+dist/
+
 # Xcode
 build/
 xcuserdata/
@@ -22,3 +25,6 @@ DeskJig.xcodeproj/project.xcworkspace/
 
 # Local, untracked signing overrides (see DeskJigCLI/DeskJigCLI.xcconfig)
 Local.xcconfig
+
+# Coverage traces dropped by instrumented binaries run from the repo root
+*.profraw

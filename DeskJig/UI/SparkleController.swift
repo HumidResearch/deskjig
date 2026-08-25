@@ -61,11 +61,12 @@ final class SparkleController: ObservableObject {
 
         // Placeholder state must be resolved from the bundle BEFORE construction.
         // With `startingUpdater: true` the controller starts the updater inside
-        // this initializer; against the placeholder feed (unresolvable host, empty
-        // SUPublicEDKey) the start itself fails and SPUStandardUpdaterController
-        // presents its own "The updater failed to start" alert — an app-modal
-        // dialog raised before any of our per-path guards can run.
-        let isPlaceholderFeed = Self.bundleFeedURLIsPlaceholder()
+        // this initializer; against a placeholder configuration (unresolvable
+        // host, or a missing/placeholder SUPublicEDKey) the start itself fails and
+        // SPUStandardUpdaterController presents its own "The updater failed to
+        // start" alert — an app-modal dialog raised before any of our per-path
+        // guards can run.
+        let isPlaceholderFeed = Self.bundleUpdateConfigurationIsPlaceholder()
         self.isPlaceholderFeed = isPlaceholderFeed
 
         // Initialize updater controller with delegates
@@ -83,7 +84,7 @@ final class SparkleController: ObservableObject {
             // observing an updater that has no session, and skip the automatic-check
             // configuration (which would touch the same unstarted updater).
             canCheckForUpdates = false
-            DeskJigLog.info(.app, "SparkleController initialized with updater NOT started: placeholder feed URL (no release pipeline yet); all update paths suppressed")
+            DeskJigLog.info(.app, "SparkleController initialized with updater NOT started: placeholder Sparkle configuration (feed URL or SUPublicEDKey not set); all update paths suppressed")
             return
         }
 
@@ -108,28 +109,43 @@ final class SparkleController: ObservableObject {
         self.init(appDelegate: NSApplication.shared.delegate as? AppDelegate)
     }
 
-    /// Reads `SUFeedURL` straight from the bundle, without an updater instance.
+    /// The literal committed in Info.plist until the maintainer generates the
+    /// real EdDSA keypair. `.github/workflows/release.yml` refuses to build a
+    /// release while this value is still present; this constant is the app-side
+    /// half of the same guard.
+    private static let publicEDKeyPlaceholder = "REPLACE_WITH_SPARKLE_PUBLIC_KEY"
+
+    /// Reads `SUFeedURL` and `SUPublicEDKey` straight from the bundle, without an
+    /// updater instance.
     ///
-    /// A missing, empty or `example.invalid` feed is the placeholder: checking
-    /// against it can only ever fail. Resolved before `SPUStandardUpdaterController`
-    /// exists so the decision can gate `startingUpdater:` itself.
-    private static func bundleFeedURLIsPlaceholder() -> Bool {
-        guard let raw = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
+    /// Either half being unset makes an update check pointless — an
+    /// `example.invalid` feed can reach no server, and a missing or placeholder
+    /// public key means no downloaded update could ever be trusted. Both are
+    /// resolved before `SPUStandardUpdaterController` exists so the decision can
+    /// gate `startingUpdater:` itself.
+    private static func bundleUpdateConfigurationIsPlaceholder() -> Bool {
+        guard let rawFeed = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String else {
             return true
         }
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let host = URL(string: trimmed)?.host else { return true }
-        return host.hasSuffix("example.invalid")
+        let feed = rawFeed.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !feed.isEmpty, let host = URL(string: feed)?.host else { return true }
+        if host.hasSuffix("example.invalid") { return true }
+
+        guard let rawKey = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String else {
+            return true
+        }
+        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        return key.isEmpty || key == publicEDKeyPlaceholder
     }
 
-    /// True while the Info.plist ships the placeholder feed (no release pipeline yet).
+    /// True while the Info.plist ships a placeholder feed URL or public key.
     /// Every check path stays suppressed behind this as a second layer, so a real
     /// feed in M2 restores full behavior with no further changes here.
     private let isPlaceholderFeed: Bool
 
     func checkForUpdates() {
         guard !isPlaceholderFeed else {
-            DeskJigLog.info(.app, "Manual update check ignored: placeholder feed URL (no release pipeline yet)")
+            DeskJigLog.info(.app, "Manual update check ignored: placeholder Sparkle configuration (feed URL or SUPublicEDKey not set)")
             return
         }
         DeskJigLog.info(.app, "Manual update check requested by user")
@@ -200,7 +216,7 @@ final class SparkleController: ObservableObject {
         guard !isPlaceholderFeed else {
             UserDefaults.standard.set(false, forKey: "SUEnableAutomaticChecks")
             updaterController.updater.automaticallyChecksForUpdates = false
-            DeskJigLog.info(.app, "Sparkle automatic checks disabled: placeholder feed URL (no release pipeline yet)")
+            DeskJigLog.info(.app, "Sparkle automatic checks disabled: placeholder Sparkle configuration (feed URL or SUPublicEDKey not set)")
             return
         }
         UserDefaults.standard.set(true, forKey: "SUEnableAutomaticChecks")
