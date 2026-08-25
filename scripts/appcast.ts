@@ -69,7 +69,13 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function parseArgs(argv: string[]): Options {
+/**
+ * Shared `--flag value` scanner. Rejects flags outside `known`: a silently
+ * swallowed typo (`--previou …`) would make the precheck pass vacuously or
+ * make generation drop the previous feed — both are exactly the failures this
+ * script exists to prevent.
+ */
+function collectFlagValues(argv: string[], known: ReadonlySet<string>): Map<string, string> {
   const values = new Map<string, string>();
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
@@ -78,11 +84,39 @@ function parseArgs(argv: string[]): Options {
       process.exit(0);
     }
     if (!arg.startsWith("--")) fail(`unexpected argument: ${arg}`);
+    const name = arg.slice(2);
+    if (!known.has(name)) fail(`unknown option: ${arg}`);
     const next = argv[i + 1];
     if (next === undefined) fail(`${arg} requires a value`);
-    values.set(arg.slice(2), next);
+    values.set(name, next);
     i++;
   }
+  return values;
+}
+
+function requireInteger(name: string, value: string): string {
+  if (!/^\d+$/.test(value)) {
+    fail(`--${name} must be a plain integer${name === "build" ? " (CFBundleVersion)" : ""}, got "${value}"`);
+  }
+  return value;
+}
+
+const GENERATE_FLAGS: ReadonlySet<string> = new Set([
+  "short-version",
+  "build",
+  "url",
+  "signature",
+  "length",
+  "minimum-system-version",
+  "release-notes-file",
+  "previous",
+  "output",
+]);
+
+const PRECHECK_FLAGS: ReadonlySet<string> = new Set(["short-version", "build", "previous"]);
+
+function parseArgs(argv: string[]): Options {
+  const values = collectFlagValues(argv, GENERATE_FLAGS);
 
   const required = (name: string): string => {
     const value = values.get(name);
@@ -90,12 +124,8 @@ function parseArgs(argv: string[]): Options {
     return value.trim();
   };
 
-  const build = required("build");
-  if (!/^\d+$/.test(build)) {
-    fail(`--build must be a plain integer (CFBundleVersion), got "${build}"`);
-  }
-  const length = required("length");
-  if (!/^\d+$/.test(length)) fail(`--length must be a plain integer, got "${length}"`);
+  const build = requireInteger("build", required("build"));
+  const length = requireInteger("length", required("length"));
 
   return {
     shortVersion: required("short-version"),
@@ -223,20 +253,12 @@ function assertBuildIsNewer(newBuild: number, highestPublishedBuild: number): vo
  * (the full check still runs again at generation time).
  */
 function precheckMain(argv: string[]): void {
-  const values = new Map<string, string>();
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]!;
-    if (!arg.startsWith("--")) fail(`unexpected argument: ${arg}`);
-    const next = argv[i + 1];
-    if (next === undefined) fail(`${arg} requires a value`);
-    values.set(arg.slice(2), next);
-    i++;
-  }
+  const values = collectFlagValues(argv, PRECHECK_FLAGS);
 
   const shortVersion = values.get("short-version")?.trim();
   const build = values.get("build")?.trim();
   if (!shortVersion || !build) fail("--precheck requires --short-version and --build");
-  if (!/^\d+$/.test(build)) fail(`--build must be a plain integer (CFBundleVersion), got "${build}"`);
+  requireInteger("build", build);
   const previous = values.get("previous")?.trim();
 
   const previousXML = previous && existsSync(previous) ? readFileSync(previous, "utf8") : undefined;

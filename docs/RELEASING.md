@@ -160,8 +160,31 @@ Two rules the workflow enforces for you:
   before anything is built.
 - `CURRENT_PROJECT_VERSION` must be greater than the highest already in the
   published appcast. Sparkle compares `CFBundleVersion`, so a stale build number
-  produces a release that silently never installs over its predecessor. The
-  appcast generator fails the run rather than publish one.
+  produces a release that silently never installs over its predecessor. This is
+  checked twice: a precheck in the workflow's `gate` job fails the run in
+  seconds, and the appcast generator re-checks at publish time.
+
+### Workflow shape, dry runs and reruns
+
+The release workflow is four jobs — `gate` (cheap Linux validation: tag/semver,
+Version.xcconfig match, Sparkle key, build-number precheck) → `build`
+(universal build + deep re-sign) → `notarize` (both notarization rounds, DMG,
+Gatekeeper) → `publish` (Sparkle signature, appcast, GitHub Release). Products
+cross job boundaries as artifacts, so **a flake reruns only the failed job**:
+`gh run rerun <run-id> --failed` after a notarization flake redoes ~2 minutes
+of work, not the whole build.
+
+To exercise the pipeline without publishing, dispatch it manually **on a tag
+ref** with the default `dry_run: true`:
+
+```
+gh workflow run release.yml --ref v1.0.1
+```
+
+A dry run builds, signs, notarizes, packages, Gatekeeper-assesses and generates
+the appcast, then stops before `gh release create` and writes a summary.
+Re-dispatch with `-f dry_run=false` (or push the tag) to publish for real. A
+tag can only be dispatched if it already contains the workflow file.
 
 ### 2. Optional release notes
 
@@ -269,10 +292,13 @@ straight out of the build directory.
 
 ### Fork safety
 
-The release job carries `if: github.repository == 'HumidResearch/deskjig'`. A fork
-that pushes a `v*` tag gets a skipped job, not a run that fails partway through
-trying to decrypt a certificate it does not have. Any future job added to this
-workflow needs the same guard.
+**Every job** in the release workflow carries
+`if: ${{ !github.event.repository.fork }}` — there is no single workflow-level
+guard, so any future job added to this workflow needs its own copy. A fork that
+pushes a `v*` tag gets skipped jobs, not a run that fails partway through
+trying to decrypt a certificate it does not have. (The guard keys off the fork
+bit rather than a hard-coded repository name so a rename or org move cannot
+silently disable CI.)
 
 ### Signing material handling
 
