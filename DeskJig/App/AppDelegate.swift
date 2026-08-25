@@ -268,7 +268,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     DeskJigApp.mainWindowVisibilityPublisher.send((wasVisible: false, isVisible: true))
                 }
             }
+        } else {
+            promptForAccessibilityIfMissing()
         }
+    }
+
+    /// Migrated Bento users adopt a completed onboarding, so the onboarding's
+    /// Accessibility step never runs for them — but this binary's signature has
+    /// no TCC grant of its own, and without one every restore fails silently
+    /// (#20). Outside onboarding, nothing else ever asks: surface the system
+    /// prompt here on launch until the grant exists. Onboarding-incomplete
+    /// launches keep the existing flow (the overlay owns the prompt there).
+    @MainActor
+    private func promptForAccessibilityIfMissing() {
+        guard !AXIsProcessTrusted() else { return }
+        DeskJigLog.warn(.app, "Accessibility not granted after completed onboarding — requesting system prompt")
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
 
     // MARK: - Early Startup Initialization
