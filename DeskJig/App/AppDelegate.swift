@@ -269,22 +269,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         } else {
-            promptForAccessibilityIfMissing()
+            presentPermissionsOnboardingIfAccessibilityMissing()
         }
     }
 
     /// Migrated Bento users adopt a completed onboarding, so the onboarding's
     /// Accessibility step never runs for them — but this binary's signature has
     /// no TCC grant of its own, and without one every restore fails silently
-    /// (#20). Outside onboarding, nothing else ever asks: surface the system
-    /// prompt here on launch until the grant exists. Onboarding-incomplete
-    /// launches keep the existing flow (the overlay owns the prompt there).
+    /// (#20). Re-present the existing onboarding wizard at its permissions
+    /// stage — the same flow Bento used — rather than a bespoke prompt: its
+    /// button drives the native dialog, opens the Accessibility pane, polls for
+    /// the grant, and pre-warms the Chrome automation TCC. Finishing the stage
+    /// re-marks completion idempotently, so the wizard never loops.
+    ///
+    /// `--force-permissions-onboarding` presents it regardless of grant state,
+    /// so the flow can be exercised on a machine that has already granted.
     @MainActor
-    private func promptForAccessibilityIfMissing() {
-        guard !AXIsProcessTrusted() else { return }
-        DeskJigLog.warn(.app, "Accessibility not granted after completed onboarding — requesting system prompt")
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+    private func presentPermissionsOnboardingIfAccessibilityMissing() {
+        let forced = CommandLine.arguments.contains("--force-permissions-onboarding")
+        guard forced || !AXIsProcessTrusted() else { return }
+        guard let simpleOnboardingVM else { return }
+
+        DeskJigLog.warn(.app, "Accessibility not granted after completed onboarding — presenting permissions onboarding stage", fields: ["forced": forced])
+
+        isWindowVisible = true
+        DeskJigApp.mainWindowVisibilityPublisher.send((wasVisible: false, isVisible: true))
+        simpleOnboardingVM.presentPermissionsStageForMigration()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            if self?.isWindowVisible == true {
+                DeskJigApp.mainWindowVisibilityPublisher.send((wasVisible: false, isVisible: true))
+            }
+        }
     }
 
     // MARK: - Early Startup Initialization

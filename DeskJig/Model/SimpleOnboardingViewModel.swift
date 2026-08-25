@@ -115,6 +115,23 @@ final class SimpleOnboardingViewModel {
         DeskJigLog.info(.app, "SimpleOnboarding: Starting simple onboarding", fields: ["stage": startingStage.rawValue, "entryPoint": entryPoint.logLabel])
     }
 
+    /// Re-presents ONLY the permissions stage for a migrated user whose
+    /// completed onboarding was adopted from Bento but whose Accessibility
+    /// grant did not carry over (#20 — the grant is keyed to the app
+    /// signature). `isCompleted` is left untouched: advancing past the stage
+    /// (it's the last one) or closing the overlay re-marks completion
+    /// idempotently, and the settings-window onboarding gate never re-arms
+    /// because completion never drops.
+    func presentPermissionsStageForMigration() {
+        guard !isPresented else {
+            DeskJigLog.info(.app, "SimpleOnboarding: Will not present permissions stage, already presented")
+            return
+        }
+        currentStage = .permissions
+        isPresented = true
+        DeskJigLog.info(.app, "SimpleOnboarding: Presenting permissions stage for migrated user")
+    }
+
     func closeOnboarding() {
         isPresented = false
         DeskJigLog.info(.app, "SimpleOnboarding: Closing simple onboarding")
