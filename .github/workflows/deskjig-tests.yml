@@ -92,7 +92,7 @@ jobs:
       # a cold cache still leaves the rerun warm — the whole point of caching.
       - name: Restore SwiftPM checkouts cache
         id: cache_spm
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
@@ -106,7 +106,7 @@ jobs:
       # purpose marks the post-split layout (SourcePackages no longer inside).
       - name: Restore Xcode test build cache
         id: cache_derived_data
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData
           key: ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
