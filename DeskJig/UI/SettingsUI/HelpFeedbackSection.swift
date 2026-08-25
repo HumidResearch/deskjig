@@ -14,7 +14,7 @@ struct HelpFeedbackSection: View {
 
     /// Issue tracker the "Send Feedback" action hands off to. DeskJig has no
     /// feedback backend — the app only opens this page in the user's browser.
-    private static let issueTrackerURL = URL(string: "https://github.com/armynante/deskjig/issues")!
+    private static let issueTrackerURL = URL(string: "https://github.com/HumidResearch/deskjig/issues")!
 
     @State private var feedbackText: String = ""
     @State private var feedbackSubmitMessage: String? = nil

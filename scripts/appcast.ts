@@ -18,7 +18,7 @@
 // USAGE:
 //   bun run scripts/appcast.ts \
 //     --short-version 1.0.0 --build 1 \
-//     --url https://github.com/armynante/deskjig/releases/download/v1.0.0/DeskJig-1.0.0.dmg \
+//     --url https://github.com/HumidResearch/deskjig/releases/download/v1.0.0/DeskJig-1.0.0.dmg \
 //     --signature "<edSignature>" --length 12345678 \
 //     [--minimum-system-version 14.0] \
 //     [--release-notes-file release_notes/v1.0.0.md] \
@@ -28,7 +28,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const FEED_TITLE = "DeskJig";
-const FEED_LINK = "https://github.com/armynante/deskjig/releases/latest/download/appcast.xml";
+const FEED_LINK = "https://github.com/HumidResearch/deskjig/releases/latest/download/appcast.xml";
 const FEED_DESCRIPTION = "Updates for DeskJig, the macOS workspace manager.";
 const SPARKLE_NS = "http://www.andymatuschak.org/xml-namespaces/sparkle";
 
@@ -153,7 +153,7 @@ function descriptionFor(options: Options): string {
       return notes.replace(/]]>/g, "]]&gt;");
     }
   }
-  return `DeskJig ${options.shortVersion}. See https://github.com/armynante/deskjig/releases/tag/v${options.shortVersion} for details.`;
+  return `DeskJig ${options.shortVersion}. See https://github.com/HumidResearch/deskjig/releases/tag/v${options.shortVersion} for details.`;
 }
 
 function renderItem(options: Options, pubDate: string): string {
@@ -164,7 +164,7 @@ function renderItem(options: Options, pubDate: string): string {
     `      <sparkle:version>${escapeXML(options.build)}</sparkle:version>`,
     `      <sparkle:shortVersionString>${escapeXML(options.shortVersion)}</sparkle:shortVersionString>`,
     `      <sparkle:minimumSystemVersion>${escapeXML(options.minimumSystemVersion)}</sparkle:minimumSystemVersion>`,
-    `      <link>https://github.com/armynante/deskjig/releases/tag/v${escapeXML(options.shortVersion)}</link>`,
+    `      <link>https://github.com/HumidResearch/deskjig/releases/tag/v${escapeXML(options.shortVersion)}</link>`,
     `      <description><![CDATA[${descriptionFor(options)}]]></description>`,
     "      <enclosure",
     `        url="${escapeXML(options.url)}"`,

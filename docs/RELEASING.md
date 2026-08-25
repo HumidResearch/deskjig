@@ -103,26 +103,26 @@ The values never leave your machine except as GitHub secrets.
 
 ```bash
 # 1. Developer ID certificate, base64-encoded
-gh secret set MACOS_CERTIFICATE_P12 -R armynante/deskjig \
+gh secret set MACOS_CERTIFICATE_P12 -R HumidResearch/deskjig \
   --body "$(base64 -i /path/to/DeveloperID.p12)"
 
 # 2. The password you exported the .p12 with (prompts, nothing in shell history)
-gh secret set MACOS_CERTIFICATE_PASSWORD -R armynante/deskjig
+gh secret set MACOS_CERTIFICATE_PASSWORD -R HumidResearch/deskjig
 
 # 3-4. App Store Connect key identifiers (prompts)
-gh secret set NOTARY_KEY_ID    -R armynante/deskjig
-gh secret set NOTARY_ISSUER_ID -R armynante/deskjig
+gh secret set NOTARY_KEY_ID    -R HumidResearch/deskjig
+gh secret set NOTARY_ISSUER_ID -R HumidResearch/deskjig
 
 # 5. The .p8 private key, base64-encoded
-gh secret set NOTARY_KEY_P8 -R armynante/deskjig \
+gh secret set NOTARY_KEY_P8 -R HumidResearch/deskjig \
   --body "$(base64 -i /path/to/AuthKey_XXXXXXXXXX.p8)"
 
 # 6. Sparkle EdDSA private key (the string generate_keys -x wrote)
-gh secret set SPARKLE_PRIVATE_KEY -R armynante/deskjig \
+gh secret set SPARKLE_PRIVATE_KEY -R HumidResearch/deskjig \
   --body "$(cat sparkle_private_key.txt)"
 
 # Confirm all six are present
-gh secret list -R armynante/deskjig
+gh secret list -R HumidResearch/deskjig
 ```
 
 | Secret | Contents |
@@ -190,7 +190,7 @@ git push origin v1.0.1
 Pushing the tag is what starts the release. Watch it:
 
 ```bash
-gh run watch -R armynante/deskjig
+gh run watch -R HumidResearch/deskjig
 ```
 
 Roughly 20–40 minutes, most of it two notarization round trips.
@@ -199,7 +199,7 @@ Roughly 20–40 minutes, most of it two notarization round trips.
 
 ```bash
 # Download what was actually published
-gh release download v1.0.1 -R armynante/deskjig -p '*.dmg' -D ~/Downloads
+gh release download v1.0.1 -R HumidResearch/deskjig -p '*.dmg' -D ~/Downloads
 
 # Gatekeeper, offline — this is what a user's Mac does
 spctl -a -vv -t open --context context:primary-signature ~/Downloads/DeskJig-1.0.1.dmg
@@ -213,7 +213,7 @@ hdiutil detach /Volumes/DeskJig\ 1.0.1
 /Applications/DeskJig.app/Contents/Helpers/deskjig --version    # -> 1.0.1
 
 # The feed the app actually reads
-curl -fsSL https://github.com/armynante/deskjig/releases/latest/download/appcast.xml
+curl -fsSL https://github.com/HumidResearch/deskjig/releases/latest/download/appcast.xml
 ```
 
 **Auto-update proof** (do this once, when the second release exists): install the
@@ -231,7 +231,7 @@ into the new build. If it finds nothing, the cause is almost always a
 `SUFeedURL` in `DeskJig/Info.plist` is:
 
 ```
-https://github.com/armynante/deskjig/releases/latest/download/appcast.xml
+https://github.com/HumidResearch/deskjig/releases/latest/download/appcast.xml
 ```
 
 GitHub answers that path with a `302` to the newest **non-prerelease** release's
@@ -269,7 +269,7 @@ straight out of the build directory.
 
 ### Fork safety
 
-The release job carries `if: github.repository == 'armynante/deskjig'`. A fork
+The release job carries `if: github.repository == 'HumidResearch/deskjig'`. A fork
 that pushes a `v*` tag gets a skipped job, not a run that fails partway through
 trying to decrypt a certificate it does not have. Any future job added to this
 workflow needs the same guard.
