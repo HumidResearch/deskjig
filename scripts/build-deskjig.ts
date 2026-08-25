@@ -18,7 +18,7 @@ Builds the DeskJig app or the deskjig CLI using the DeskJig workspace.
 This command is non-interactive and exits when the build completes.
 
 USAGE:
-  bun run scripts/build-deskjig.ts --target <app|cli> [OPTIONS]
+  bun run scripts/build-deskjig.ts --target <app|cli> [OPTIONS] [SETTING=VALUE ...]
 
 OPTIONS:
   -t, --target <app|cli>     What to build (required)
@@ -26,18 +26,30 @@ OPTIONS:
       --release              Use Release configuration
   -c, --configuration <name> Explicit configuration (Debug|Release)
       --derived-data <path>  Override DerivedData path
+      --universal            Build a universal arm64 + x86_64 binary
       --no-signing           Disable code signing (sets CODE_SIGNING_ALLOWED=NO)
       --log-file <path>      Write full build output to this file
   -h, --help                 Show this help message
+
+BUILD SETTING OVERRIDES:
+  Any bare NAME=VALUE argument is forwarded to xcodebuild verbatim, which
+  applies it to every target in the build. This is how the release workflow
+  swaps the default ad-hoc signing for a real Developer ID identity without
+  the identity ever being committed to the project.
 
 EXAMPLES:
   bun run build:app
   bun run build:app -- --release
   bun run build:cli -- --debug
   bun run build:cli -- --configuration Release
+  bun run build:app -- --release CODE_SIGN_STYLE=Manual \\
+    CODE_SIGN_IDENTITY="Developer ID Application: … (TEAMID)" DEVELOPMENT_TEAM=TEAMID
 
 NOTES:
   - Full output is teed to the log file; on failure, tail that file for details.
+  - Local builds default to the host architecture only, which is what you want
+    for the edit/build/run loop. Shipping builds pass --universal so the DMG
+    runs on Intel Macs too (the release runner is Apple silicon).
 `);
 }
 
@@ -68,7 +80,12 @@ let target: Target | undefined;
 let configuration: BuildConfiguration = "Debug";
 let derivedDataPath: string | undefined;
 let disableSigning = false;
+let universal = false;
 let logFilePath: string | undefined;
+const settingOverrides: string[] = [];
+
+// `NAME=VALUE`, with NAME in the shape xcodebuild accepts for a build setting.
+const buildSettingPattern = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
@@ -111,6 +128,11 @@ for (let i = 0; i < argv.length; i++) {
     continue;
   }
 
+  if (arg === "--universal") {
+    universal = true;
+    continue;
+  }
+
   if (arg === "--no-signing") {
     disableSigning = true;
     continue;
@@ -124,6 +146,11 @@ for (let i = 0; i < argv.length; i++) {
     }
     logFilePath = nextArg;
     i++;
+    continue;
+  }
+
+  if (arg && buildSettingPattern.test(arg)) {
+    settingOverrides.push(arg);
     continue;
   }
 
@@ -163,7 +190,9 @@ const resolvedLogFilePath = logFilePath ?? defaultLogFile;
 mkdirSync(dirname(resolvedLogFilePath), { recursive: true });
 const logStream = createWriteStream(resolvedLogFilePath, { flags: "w" });
 
-const destination = destinationForHostArch();
+// A universal build must not pin the destination to the host architecture —
+// xcodebuild derives ARCHS from it and would quietly drop the other slice.
+const destination = universal ? "platform=macOS" : destinationForHostArch();
 
 const args: string[] = [
   "-workspace",
@@ -183,9 +212,14 @@ if (destination) {
 args.push("build");
 
 const buildSettings: string[] = [];
+if (universal) {
+  buildSettings.push("ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO");
+}
 if (disableSigning) {
   buildSettings.push("CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO");
 }
+// Caller-supplied overrides go last so they win over anything above.
+buildSettings.push(...settingOverrides);
 
 logStream.write(`Command line invocation:\n    xcodebuild ${[...args, ...buildSettings].join(" ")}\n\n`);
 

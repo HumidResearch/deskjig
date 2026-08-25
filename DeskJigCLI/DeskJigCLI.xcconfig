@@ -12,4 +12,20 @@
 // `Local.xcconfig` is gitignored; the optional include below is a no-op when
 // the file is absent.
 
+// Version numbers live in one place for the whole repo.
+#include "../Version.xcconfig"
+
+// A command-line tool has no Info.plist on disk, so `Bundle.main.infoDictionary`
+// is empty unless one is embedded directly in the Mach-O. Without these two
+// settings `DeskJigVersion.current` (DeskJigCLI/Sources/SharedContext.swift)
+// falls all the way through to the literal "unknown" and `deskjig --version`
+// prints it. GENERATE_INFOPLIST_FILE synthesises a plist from MARKETING_VERSION /
+// CURRENT_PROJECT_VERSION / PRODUCT_BUNDLE_IDENTIFIER, and
+// CREATE_INFOPLIST_SECTION_IN_BINARY links it into __TEXT,__info_plist so it is
+// readable wherever the binary ends up — inside DeskJig.app/Contents/Helpers,
+// symlinked at /usr/local/bin/deskjig, or run straight out of the build
+// products directory.
+GENERATE_INFOPLIST_FILE = YES
+CREATE_INFOPLIST_SECTION_IN_BINARY = YES
+
 #include? "Local.xcconfig"
