@@ -402,7 +402,9 @@ private extension DeskJigApp {
             }
             .overlay {
                 if showingSplash {
-                    LottieSplashView {
+                    // Native block-assembly splash. The previous video-backed
+                    // implementation remains available as `LottieSplashView`.
+                    BlockAssemblySplashView {
                         showingSplash = false
                     }
                     .transition(.opacity)
