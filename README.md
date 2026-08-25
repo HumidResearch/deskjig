@@ -1,59 +1,137 @@
+<p align="center">
+  <img src="docs/media/icon.png" width="128" alt="DeskJig app icon">
+</p>
+
 # DeskJig
 
-DeskJig is a macOS workspace manager: it saves the full arrangement of your working windows — apps, positions, monitors, Chrome profiles and tabs, terminal and tmux sessions — as named workspaces, and restores them on demand. Like a woodworker's jig, it holds everything in exactly the right position so you can get back to work instantly.
+Save your window layout as a named workspace. Get it back in one click.
 
-> **Status: under active conversion to open source.** DeskJig was previously a commercial product (Bento). The account, subscription, and cloud-sync systems are being removed in favor of a fully local, no-server app. Expect scaffolding, legacy names (`Bento`, `bentoctl`, `com.mscontrol.bento`), and rough edges while the conversion lands. Nothing in this app requires a server or an account.
+[![License](https://img.shields.io/github/license/armynante/deskjig)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/armynante/deskjig?sort=semver)](https://github.com/armynante/deskjig/releases/latest)
 
-## Download
+DeskJig is a macOS menu bar app. It records which apps are open, which windows they own, and where each window sits on every monitor. Restore a workspace and each window is unhidden, un-minimized, moved back to its saved frame, and raised in its saved z-order.
 
-[![Latest release](https://img.shields.io/github/v/release/armynante/deskjig?label=download&sort=semver)](https://github.com/armynante/deskjig/releases/latest)
+![Saving a workspace, then restoring it from the switcher](docs/media/saved-workspaces.gif)
 
-Grab the latest signed, notarized DMG from the
-**[releases page](https://github.com/armynante/deskjig/releases/latest)**, open
-it, and drag DeskJig to Applications. macOS 14 or later, Apple silicon or Intel.
+DeskJig used to be Bento, a paid app. It is now free and open source. The story of the transition is at [bentodesktop.com](https://bentodesktop.com).
 
-DeskJig updates itself from there on (Sparkle, **Settings → Check for Updates**).
+## What it does
 
-## Features
+- **Workspaces.** One workspace holds every window on every monitor. Save as many as you want, star favorites, restore from the menu bar or the main window.
+- **Multi-monitor aware.** Layouts are stored per monitor. If a display from the saved layout is missing at restore time, its windows are grouped as "Unassigned" instead of being dropped.
+- **Terminal sessions.** Terminal windows reopen in their saved working directory and reattach to their tmux sessions. The open-in-directory path knows Ghostty, iTerm2, Terminal, kitty, and Alacritty.
+- **Chrome profiles and tabs.** Chrome windows reopen under the profile they were saved with, tabs included.
+- **Quick switch.** Retargets your terminal and IDE windows at a different project directory without rebuilding the layout by hand.
+- **Snap zones.** Drag a window toward the top of the screen and a zone picker drops down. Release over a zone and the window snaps to it.
 
-- **Workspaces** — capture every window on every monitor as a named layout; restore with one action.
-- **Quick Switch** — jump between workspaces; windows are unhidden, un-minimized, repositioned, and raised in the right z-order.
-- **Chrome-aware** — restores windows to the right Chrome profile with the right tabs.
-- **Terminal-aware** — reattaches terminal windows to their tmux sessions and working directories.
-- **Snap layouts** — BSP-style tiling with edge snapping and drag interactions.
-- **`bentoctl` CLI** — inspect windows/apps/displays, trigger restores, and script window management (rename to `deskjig` pending).
+  ![Dragging a window into a snap zone](docs/media/zones.gif)
 
-## Building
+- **Tidy up.** Collects every window into groups, so windows buried under other windows resurface.
 
-Requires Xcode (macOS 15+ toolchain) and [Bun](https://bun.sh).
+  ![Tidy up arranging a messy desktop](docs/media/tidy-up.gif)
+
+- **Menu bar window moves.** Move Left, Move Right, Move to Top, Move to Bottom, Center, and Maximize, each on a ⌃⌥ shortcut.
+- **A CLI in the bundle.** `deskjig` scripts everything the app can inspect: workspaces, windows, apps, displays, logs. See below.
+- **Auto-updates.** Sparkle checks for updates; no account, no server of ours.
+
+## Getting started
+
+### Install
+
+1. Download the DMG from the [latest release](https://github.com/armynante/deskjig/releases/latest).
+2. Drag DeskJig to Applications and open it.
+3. Grant Accessibility when macOS asks. DeskJig reads and moves windows through the Accessibility API, so nothing works without this grant.
+
+Requires macOS 14 or later.
+
+### Your first workspace
+
+1. Arrange your windows the way you want to find them again.
+2. Click the DeskJig icon in the menu bar and choose Open DeskJig.
+3. Click "Create new workspace" and save the layout under a name.
+4. Mess everything up. Restore the workspace from the menu bar's Workspaces submenu. Your windows go back where they were.
+
+### Coming from Bento
+
+Install DeskJig and launch it. A one-time sweep on first launch adopts the workspaces your Bento install saved, so they show up without any export or import step. macOS will ask for Accessibility again because DeskJig is signed with a new identity. That is the whole migration.
+
+## The command line
+
+The app bundle ships a CLI at `DeskJig.app/Contents/Helpers/deskjig`. Run `deskjig install` to symlink it into `/usr/local/bin`.
+
+```
+$ deskjig --help
+SUBCOMMANDS:
+  workspace               Workspace operations
+  url-handoff             Open one or more URLs in Chrome without doing a
+                          workspace restore
+  window                  Window operations
+  app                     App operations (and DeskJig in-app triggers: restore,
+                          status, open-url)
+  chrome                  Chrome operations
+  display                 Display operations
+  debug                   Diagnostic and restore debugging operations
+  logs                    DeskJig log inspection
+  open                    Open a directory in a supported app
+  permissions             Check or prompt for Accessibility permissions
+  install                 Install a /usr/local/bin/deskjig symlink
+  notify                  Show a DeskJig toast notification with optional
+                          workspace switch
+```
+
+Every command prints a status line, or structured JSON with `--format json`:
+
+```
+$ deskjig workspace list
+status=success action=list-workspaces exit_code=0 duration_ms=3.66 total_duration_ms=58.13 message="Found 25 workspace(s)"
+
+$ deskjig --format json workspace list
+{
+  "action" : "list-workspaces",
+  "data" : [
+    {
+      "createdAt" : "2026-01-20T20:24:26Z",
+      "icon" : "📊",
+      "id" : "2E5A381B-BA32-435C-943A-1E8E3E5D7A75",
+      "lastActivatedAt" : "2026-02-07T00:34:39Z",
+      "name" : "Data Analysis",
+      "screenCount" : 2,
+      "windowCount" : 5
+    },
+    ...
+  ]
+}
+```
+
+Restore a workspace with `deskjig workspace restore "Data Analysis"`, or `deskjig app restore` to run the restore inside the running app. Inspect displays with `deskjig display list`, query windows with `deskjig window query --app Safari`, and move them with `deskjig window move --app Safari --position left-half`.
+
+## Building from source
+
+You need Xcode and [Bun](https://bun.sh).
 
 ```bash
 bun install
-bun run build:app     # the app
-bun run build:cli     # the CLI
+bun run build:app     # DeskJig.app
+bun run build:cli     # the deskjig CLI
+bun run test          # unit tests
 ```
 
-Build output lands under `build/`; the build scripts wrap `xcodebuild` and summarize errors.
+The build scripts wrap `xcodebuild`, write logs, and summarize errors. Output lands under `build/`. Release packaging, signing, and notarization are covered in [docs/RELEASING.md](docs/RELEASING.md).
 
-## Testing
-
-```bash
-bun scripts/cli-smoke-test.ts   # read-only CLI smoke suite (requires built binaries)
-```
-
-Unit tests live in `DeskJigTests/` (Swift Testing) and run via the Xcode test plans in `TestPlans/`.
-
-## Releasing
-
-Releases are cut by pushing a `v*` tag; GitHub Actions builds, signs, notarizes
-and publishes the DMG plus the Sparkle appcast. The runbook — including the
-one-time certificate, notarization-key and Sparkle-keypair setup — is
-[docs/RELEASING.md](docs/RELEASING.md).
-
-## License
-
-[Apache-2.0](LICENSE). Font note: DeskJig uses the system font stack; no proprietary fonts are bundled.
+Heads up: the codebase is mid-conversion from its commercial past. You will run into legacy names like `Bento`, `bentoctl`, and `com.mscontrol.bento`. They are tracked for renaming; please don't mass-rename them in a drive-by PR.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports are welcome as GitHub issues — please include macOS version, app version, and (for restore issues) the restore run ID shown in the app's logs.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Small PRs, issues first for anything non-trivial. For bug reports, include your macOS version, the app version, and for restore issues the run ID (`restore_HHMMSS_xxxxxx`) from the logs.
+
+Security reports go through [SECURITY.md](SECURITY.md), not public issues.
+
+## License
+
+[Apache-2.0](LICENSE).
+
+## About the name
+
+A jig is a woodworking fixture. It holds the workpiece so every cut lands in the same place, every time. That is what this app does to a desktop full of windows.
+
+DeskJig started life as Bento, a paid product with accounts, subscriptions, and cloud sync. In 2026 the paid product shut down and the app was renamed, stripped of its account system, and open-sourced under Apache-2.0. Everything runs locally now. [bentodesktop.com](https://bentodesktop.com) documents the transition for existing Bento users.
