@@ -4,3 +4,6 @@
 #include "../../Version.xcconfig"
 
 EXCLUDED_RESOURCE_FILE_NAMES = Info.plist
+
+// Machine-local, gitignored overrides (see Debug.xcconfig).
+#include? "Local.xcconfig"
