@@ -25,7 +25,11 @@ concurrency:
 jobs:
   headless-tests:
     name: DeskJigTests (headless plan)
+    # FORK GUARD: keeps the workflow from running in forks' own repositories.
+    # PRs from forks INTO this repo still run (github.repository is the base).
+    if: github.repository == 'HumidResearch/deskjig'
     runs-on: macos-latest
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -42,28 +46,84 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@v5
+        with:
+          # git-restore-mtime needs full history to compute per-file last-touch
+          # commits. Cheap on this repo; drop together with the step below if it
+          # ever stops paying for itself.
+          fetch-depth: 0
+
+      # Git does not preserve mtimes: a fresh checkout stamps every file with
+      # "now", so Xcode's timestamp-based incremental build treats the whole
+      # tree as dirty and a restored DerivedData cache buys nothing. Rewriting
+      # mtimes from commit history makes incremental builds actually fire.
+      - name: Restore file modification times
+        uses: chetan/git-restore-mtime-action@v2
+
+      # Companion to the mtime restore: without it Xcode invalidates on the new
+      # inode numbers the cache extraction produced, mtimes notwithstanding.
+      - name: Keep Xcode incremental builds valid across cache restores
+        run: defaults write com.apple.dt.XCBuild IgnoreFileSystemDeviceInodeChanges -bool YES
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
-      # test-deskjig.ts resolves SPM packages inside build/DerivedData (same as
-      # build-deskjig.ts), so one DerivedData cache covers both build artifacts
-      # and package checkouts. The key pins the toolchain, the resolved package
-      # versions and both project graphs — the app project and the CLI project
-      # it embeds — because a change to either invalidates the built products.
+      # Two caches, deliberately split. SwiftPM checkouts are pinned out of
+      # DerivedData (--cloned-source-packages below) so an edit to either
+      # project file rebuilds objects without also throwing away all seven
+      # package checkouts — those only churn when Package.resolved does.
+      - name: Cache SwiftPM checkouts
+        id: cache_spm
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-spm-
+
+      # The key pins the toolchain, the resolved package versions and both
+      # project graphs — the app project and the CLI project it embeds —
+      # because a change to any invalidates the built products. The `-v2`
+      # purpose marks the post-split layout (SourcePackages no longer inside).
       - name: Cache Xcode test build artifacts
+        id: cache_derived_data
         uses: actions/cache@v4
         with:
           path: build/DerivedData
-          key: ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          key: ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
           restore-keys: |
-            ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
-            ${{ runner.os }}-xcode-test-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-
+
+      - name: Cache summary
+        env:
+          SPM_HIT: ${{ steps.cache_spm.outputs.cache-hit }}
+          DD_HIT: ${{ steps.cache_derived_data.outputs.cache-hit }}
+        run: |
+          # cache-hit is only true on an exact primary-key match; a restore-key
+          # match restores content but reports false. Distinguish the two by
+          # whether the directory materialized.
+          state() {
+            local hit="$1" dir="$2"
+            if [[ "$hit" == "true" ]]; then echo "hit"
+            elif [[ -d "$dir" && -n "$(ls -A "$dir" 2>/dev/null)" ]]; then echo "partial-hit (restore-key)"
+            else echo "miss"
+            fi
+          }
+          {
+            echo "### Cache"
+            echo "| cache | state | size |"
+            echo "| --- | --- | --- |"
+            echo "| SwiftPM checkouts | $(state "$SPM_HIT" build/SourcePackages) | $(du -sh build/SourcePackages 2>/dev/null | cut -f1 || echo 0) |"
+            echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | $(du -sh build/DerivedData 2>/dev/null | cut -f1 || echo 0) |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run headless DeskJigTests plan
         # --no-signing: PR runners have no signing identity; the test host runs
         # with the linker's ad-hoc signature, which is fine for unit tests.
-        run: bun scripts/test-deskjig.ts --plan headless --no-signing
+        run: |
+          bun scripts/test-deskjig.ts --plan headless --no-signing \
+            --cloned-source-packages build/SourcePackages
 
       - name: Upload test log on failure
         if: failure()

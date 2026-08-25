@@ -23,6 +23,15 @@ name: Release
 # gated on the repository name. A fork that pushes a tag gets a skipped run, not
 # a run that fails halfway through trying to decrypt a certificate it does not have.
 #
+# MANUAL RUNS: `workflow_dispatch` re-runs a release for an existing tag —
+# dispatch it ON the tag ref (`gh workflow run release.yml --ref v1.2.3`); a
+# branch ref fails the version gate immediately. `dry_run` (default TRUE for
+# manual runs) exercises everything expensive and flake-prone — build, deep
+# re-sign, both notarizations, DMG, Gatekeeper, appcast generation — and stops
+# exactly before the irreversible publish step. Note the dispatched tag must
+# already contain this workflow file (tags cut before it landed cannot be
+# dispatched).
+#
 # Required repository secrets (created by the maintainer — see docs/RELEASING.md):
 #   MACOS_CERTIFICATE_P12       base64 of the Developer ID Application .p12
 #   MACOS_CERTIFICATE_PASSWORD  password that .p12 was exported with
@@ -35,6 +44,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build, sign and notarize but do not publish"
+        type: boolean
+        default: true
 
 # `gh release` needs write access to releases; nothing else does.
 permissions:
@@ -58,6 +73,10 @@ jobs:
     # runs a handful of times a year.
     runs-on: macos-latest
     timeout-minutes: 90
+    env:
+      # 'true' only for a manual dispatch that kept the dry_run default on.
+      # Tag pushes always publish.
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     defaults:
       run:
         shell: bash
@@ -69,11 +88,14 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Xcode version
+        id: xcode_version
         run: |
           xcode-select -p
           # Capture output first to avoid a broken-pipe crash on Xcode 26.
           XCODE_OUTPUT=$(xcodebuild -version 2>&1 || true)
           echo "$XCODE_OUTPUT"
+          VERSION=$(echo "$XCODE_OUTPUT" | head -n1 | awk '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       # ---------------------------------------------------------------------
       # Gates. Everything that can be decided without building runs first, so a
@@ -88,7 +110,7 @@ jobs:
           VERSION="${TAG#v}"
 
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Tag '$TAG' does not look like vMAJOR.MINOR.PATCH[-prerelease]."
+            echo "::error::Ref '$TAG' does not look like vMAJOR.MINOR.PATCH[-prerelease]. Manual runs must be dispatched on a release tag ref (gh workflow run release.yml --ref v1.2.3), not a branch."
             exit 1
           fi
 
@@ -130,6 +152,43 @@ jobs:
           fi
 
           echo "Sparkle feed: $FEED"
+
+      - name: Fetch the currently published appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Pulled through `gh` rather than the public feed URL so this works
+          # while the repo is still private (it flips public with v1.0.0).
+          # Nothing to fetch on the very first release; appcast.ts then starts a
+          # fresh feed. Fetched here in the gates phase so the build-number
+          # precheck below can use it.
+          rm -f "$RUNNER_TEMP/appcast-previous.xml"
+          if gh release download --pattern appcast.xml --dir "$RUNNER_TEMP" 2>/dev/null; then
+            mv "$RUNNER_TEMP/appcast.xml" "$RUNNER_TEMP/appcast-previous.xml"
+            echo "Previous appcast fetched ($(wc -c < "$RUNNER_TEMP/appcast-previous.xml") bytes)."
+          else
+            echo "No published appcast yet — starting a new feed."
+          fi
+
+      # Version.xcconfig documents that a non-growing build number fails the
+      # release; without this precheck that failure fired inside appcast
+      # generation — after both notarizations were already spent. Same logic,
+      # same code (appcast.ts), just moved to where the fix costs seconds.
+      - name: Verify build number grows monotonically
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build }}
+        run: |
+          set -euo pipefail
+          PREVIOUS_ARGS=()
+          if [[ -f "$RUNNER_TEMP/appcast-previous.xml" ]]; then
+            PREVIOUS_ARGS=(--previous "$RUNNER_TEMP/appcast-previous.xml")
+          fi
+          bun run scripts/appcast.ts --precheck \
+            --short-version "$VERSION" \
+            --build "$BUILD_NUMBER" \
+            ${PREVIOUS_ARGS[@]+"${PREVIOUS_ARGS[@]}"}
 
       # ---------------------------------------------------------------------
       # Signing material. All of it lands in RUNNER_TEMP, which is wiped with
@@ -438,23 +497,6 @@ jobs:
           echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
           echo "Signed DMG: $LENGTH bytes"
 
-      - name: Fetch the currently published appcast
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # Pulled through `gh` rather than the public feed URL so this works
-          # while the repo is still private (it flips public with v1.0.0).
-          # Nothing to fetch on the very first release; appcast.ts then starts a
-          # fresh feed.
-          rm -f "$RUNNER_TEMP/appcast-previous.xml"
-          if gh release download --pattern appcast.xml --dir "$RUNNER_TEMP" 2>/dev/null; then
-            mv "$RUNNER_TEMP/appcast.xml" "$RUNNER_TEMP/appcast-previous.xml"
-            echo "Previous appcast fetched ($(wc -c < "$RUNNER_TEMP/appcast-previous.xml") bytes)."
-          else
-            echo "No published appcast yet — starting a new feed."
-          fi
-
       - name: Generate appcast.xml
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -491,7 +533,27 @@ jobs:
       # Publish.
       # ---------------------------------------------------------------------
 
+      - name: Dry run — stop before publish
+        if: env.DRY_RUN == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          DMG: ${{ steps.dmg.outputs.dmg_path }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Dry run — nothing published"
+            echo ""
+            echo "Everything up to (and including) appcast generation succeeded for **$VERSION** ($TAG)."
+            echo ""
+            echo "- DMG: \`$DMG\` ($(du -h "$DMG" | cut -f1)), notarized + stapled, Gatekeeper-assessed"
+            echo "- appcast: \`dist/appcast.xml\` generated and build-number-checked"
+            echo ""
+            echo "Re-dispatch with dry_run unchecked to publish."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Publish GitHub Release
+        if: env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -523,6 +585,7 @@ jobs:
           echo "Published: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
 
       - name: Verify the public feed URL resolves
+        if: env.DRY_RUN != 'true'
         continue-on-error: true
         env:
           VERSION: ${{ steps.version.outputs.version }}

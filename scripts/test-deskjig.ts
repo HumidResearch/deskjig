@@ -46,6 +46,10 @@ OPTIONS:
   -c, --configuration <name>      Explicit configuration (Debug|Release)
       --derived-data <path>       Override DerivedData path (default: build/DerivedData,
                                   shared with build:app for incremental builds)
+      --cloned-source-packages <path>
+                                  Resolve SwiftPM checkouts into this directory
+                                  instead of inside DerivedData (lets CI cache
+                                  checkouts and build products independently)
       --no-signing                Disable code signing (sets CODE_SIGNING_ALLOWED=NO)
       --log-file <path>           Write full test output to this file
   -h, --help                      Show this help message
@@ -86,6 +90,7 @@ const argv = process.argv.slice(2);
 let plan: TestPlan = "full";
 let configuration: BuildConfiguration = "Debug";
 let derivedDataPath: string | undefined;
+let clonedSourcePackagesPath: string | undefined;
 let disableSigning = false;
 let logFilePath: string | undefined;
 
@@ -126,6 +131,17 @@ for (let i = 0; i < argv.length; i++) {
       process.exit(1);
     }
     derivedDataPath = nextArg;
+    i++;
+    continue;
+  }
+
+  if (arg === "--cloned-source-packages") {
+    const nextArg = argv[i + 1];
+    if (!nextArg) {
+      console.error("Error: --cloned-source-packages requires a value");
+      process.exit(1);
+    }
+    clonedSourcePackagesPath = nextArg;
     i++;
     continue;
   }
@@ -230,6 +246,10 @@ const args: string[] = [
   "NO",
   ...selectionFlagsFromPlan(planPath),
 ];
+
+if (clonedSourcePackagesPath) {
+  args.push("-clonedSourcePackagesDirPath", clonedSourcePackagesPath);
+}
 
 const buildSettings: string[] = [];
 if (disableSigning) {

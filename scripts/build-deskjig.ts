@@ -26,6 +26,11 @@ OPTIONS:
       --release              Use Release configuration
   -c, --configuration <name> Explicit configuration (Debug|Release)
       --derived-data <path>  Override DerivedData path
+      --cloned-source-packages <path>
+                             Resolve SwiftPM checkouts into this directory
+                             instead of inside DerivedData (CI caches the two
+                             independently, so a project-file edit does not
+                             force a cold re-resolve of every package)
       --universal            Build a universal arm64 + x86_64 binary
       --no-signing           Disable code signing (sets CODE_SIGNING_ALLOWED=NO)
       --log-file <path>      Write full build output to this file
@@ -79,6 +84,7 @@ const argv = process.argv.slice(2);
 let target: Target | undefined;
 let configuration: BuildConfiguration = "Debug";
 let derivedDataPath: string | undefined;
+let clonedSourcePackagesPath: string | undefined;
 let disableSigning = false;
 let universal = false;
 let logFilePath: string | undefined;
@@ -124,6 +130,17 @@ for (let i = 0; i < argv.length; i++) {
       process.exit(1);
     }
     derivedDataPath = nextArg;
+    i++;
+    continue;
+  }
+
+  if (arg === "--cloned-source-packages") {
+    const nextArg = argv[i + 1];
+    if (!nextArg) {
+      console.error("Error: --cloned-source-packages requires a value");
+      process.exit(1);
+    }
+    clonedSourcePackagesPath = nextArg;
     i++;
     continue;
   }
@@ -204,6 +221,10 @@ const args: string[] = [
   "-derivedDataPath",
   resolvedDerivedDataPath,
 ];
+
+if (clonedSourcePackagesPath) {
+  args.push("-clonedSourcePackagesDirPath", clonedSourcePackagesPath);
+}
 
 if (destination) {
   args.push("-destination", destination);
