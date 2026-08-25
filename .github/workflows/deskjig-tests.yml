@@ -152,14 +152,14 @@ jobs:
       # on an exact primary-key hit — the entry already exists and is immutable.
       - name: Save SwiftPM checkouts cache
         if: always() && steps.cache_spm.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/SourcePackages
           key: ${{ steps.cache_spm.outputs.cache-primary-key }}
 
       - name: Save Xcode test build cache
         if: always() && steps.cache_derived_data.outputs.cache-hit != 'true'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData
           key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
