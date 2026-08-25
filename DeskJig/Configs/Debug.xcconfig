@@ -4,3 +4,7 @@
 #include "../../Version.xcconfig"
 
 EXCLUDED_RESOURCE_FILE_NAMES = Info.plist
+
+// Machine-local, gitignored overrides (e.g. a real signing identity so the
+// TCC grant survives rebuilds). No-op when the file doesn't exist.
+#include? "Local.xcconfig"
