@@ -36,7 +36,7 @@
 	     means shipping one release signed by BOTH keys — never just swap this
 	     value or existing installs will reject every future update. -->
 	<key>SUFeedURL</key>
-	<string>https://github.com/armynante/deskjig/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/HumidResearch/deskjig/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>ppZ3hrOn/Pr4PJlza6HpdZAhqTm27D/QYY+ZFO7dBc0=</string>
 	<key>UTExportedTypeDeclarations</key>

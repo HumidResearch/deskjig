@@ -6,8 +6,8 @@
 
 Save your window layout as a named workspace. Get it back in one click.
 
-[![License](https://img.shields.io/github/license/armynante/deskjig)](LICENSE)
-[![Latest release](https://img.shields.io/github/v/release/armynante/deskjig?sort=semver)](https://github.com/armynante/deskjig/releases/latest)
+[![License](https://img.shields.io/github/license/HumidResearch/deskjig)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/HumidResearch/deskjig?sort=semver)](https://github.com/HumidResearch/deskjig/releases/latest)
 
 DeskJig is a macOS menu bar app. It records which apps are open, which windows they own, and where each window sits on every monitor. Restore a workspace and each window is unhidden, un-minimized, moved back to its saved frame, and raised in its saved z-order.
 
@@ -38,7 +38,7 @@ DeskJig used to be Bento, a paid app. It is now free and open source. The story 
 
 ### Install
 
-1. Download the DMG from the [latest release](https://github.com/armynante/deskjig/releases/latest).
+1. Download the DMG from the [latest release](https://github.com/HumidResearch/deskjig/releases/latest).
 2. Drag DeskJig to Applications and open it.
 3. Grant Accessibility when macOS asks. DeskJig reads and moves windows through the Accessibility API, so nothing works without this grant.
 

@@ -14,7 +14,7 @@ name: Release
 #                           releases' items merged in
 #
 # The app's SUFeedURL points at
-#   https://github.com/armynante/deskjig/releases/latest/download/appcast.xml
+#   https://github.com/HumidResearch/deskjig/releases/latest/download/appcast.xml
 # which GitHub 302-redirects to the newest non-prerelease's appcast.xml asset.
 # Sparkle's downloader follows HTTP redirects, so republishing the asset on every
 # release keeps a single permanently valid feed URL with no extra hosting.
@@ -51,7 +51,7 @@ jobs:
   release:
     name: Build, sign, notarize, publish
     # FORK GUARD — see the header. Keep this on every job that reads a secret.
-    if: github.repository == 'armynante/deskjig'
+    if: github.repository == 'HumidResearch/deskjig'
     # macos-latest, matching deskjig-tests.yml / deskjig-package.yml. A pinned
     # image label would be more reproducible but silently stops existing when
     # GitHub retires it, which is a worse failure mode for a release lane that
