@@ -482,8 +482,8 @@ jobs:
             --length "$LENGTH" \
             --minimum-system-version "$MINIMUM_SYSTEM_VERSION" \
             --output dist/appcast.xml \
-            "${PREVIOUS_ARGS[@]}" \
-            "${NOTES_ARGS[@]}"
+            ${PREVIOUS_ARGS[@]+"${PREVIOUS_ARGS[@]}"} \
+            ${NOTES_ARGS[@]+"${NOTES_ARGS[@]}"}
 
           cat dist/appcast.xml
 
