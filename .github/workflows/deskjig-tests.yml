@@ -17,6 +17,14 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Also on main: caches saved in PR runs are scoped to that PR's merge ref,
+  # so without a main run every new PR branch starts cold. A run per merge
+  # keeps a warm cache on the default branch that all PRs can restore from.
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
 
 concurrency:
   group: deskjig-tests-${{ github.ref }}
@@ -116,8 +124,10 @@ jobs:
             else echo "miss"
             fi
           }
-          SPM_SIZE=$(du -sh build/SourcePackages 2>/dev/null | cut -f1)
-          DD_SIZE=$(du -sh build/DerivedData 2>/dev/null | cut -f1)
+          # (du || true) so a missing directory on a cold cache doesn't trip
+          # the runner shell's pipefail and kill the step.
+          SPM_SIZE=$( (du -sh build/SourcePackages 2>/dev/null || true) | cut -f1 )
+          DD_SIZE=$( (du -sh build/DerivedData 2>/dev/null || true) | cut -f1 )
           {
             echo "### Cache"
             echo "| cache | state | size |"
