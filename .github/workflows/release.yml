@@ -516,8 +516,8 @@ jobs:
           else
             gh release create "$TAG" "$DMG" dist/appcast.xml \
               --title "DeskJig $VERSION" \
-              "${NOTES_ARGS[@]}" \
-              "${PRERELEASE_ARGS[@]}"
+              ${NOTES_ARGS[@]+"${NOTES_ARGS[@]}"} \
+              ${PRERELEASE_ARGS[@]+"${PRERELEASE_ARGS[@]}"}
           fi
 
           echo "Published: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
