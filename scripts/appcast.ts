@@ -44,6 +44,12 @@ OPTIONS:
   --minimum-system-version <x.y>  macOS floor for the item (default 14.0)
   --release-notes-file <path>     Markdown used as the item <description>
   --previous <path>               Previously published appcast.xml to merge in
+
+PRECHECK MODE:
+  bun run scripts/appcast.ts --precheck --short-version <x.y.z> --build <n>
+                             [--previous <path>]
+  Runs only the monotonic build-number gate (no feed is written). Exits
+  non-zero if <n> is not greater than every other published item's build.
 `;
 
 interface Options {
@@ -175,28 +181,32 @@ function renderItem(options: Options, pubDate: string): string {
   ].join("\n");
 }
 
-function main(): void {
-  const options = parseArgs(process.argv.slice(2));
-
-  const previousXML = options.previous && existsSync(options.previous)
-    ? readFileSync(options.previous, "utf8")
-    : undefined;
-
+/**
+ * Splits the previous feed into the items to carry forward (everything except a
+ * prior item for this same version — re-running a release replaces its own item
+ * rather than duplicating it) and the highest build number among them.
+ */
+function mergePrevious(
+  previousXML: string | undefined,
+  shortVersion: string,
+): { kept: string[]; highestPublishedBuild: number } {
   const kept: string[] = [];
   let highestPublishedBuild = 0;
   for (const item of previousItems(previousXML)) {
-    const itemShortVersion = shortVersionOf(item);
-    // Re-running a release replaces its own item rather than duplicating it.
-    if (itemShortVersion === options.shortVersion) continue;
+    if (shortVersionOf(item) === shortVersion) continue;
     const itemBuild = buildNumberOf(item);
     if (itemBuild !== undefined) highestPublishedBuild = Math.max(highestPublishedBuild, itemBuild);
     kept.push(item);
   }
+  return { kept, highestPublishedBuild };
+}
 
-  // The single most common way to ship a release that silently never installs:
-  // CFBundleVersion did not move, so Sparkle sees the new build as "not newer".
-  // Catch it here, where the fix is a one-line edit to Version.xcconfig.
-  const newBuild = Number(options.build);
+/**
+ * The single most common way to ship a release that silently never installs:
+ * CFBundleVersion did not move, so Sparkle sees the new build as "not newer".
+ * Catch it here, where the fix is a one-line edit to Version.xcconfig.
+ */
+function assertBuildIsNewer(newBuild: number, highestPublishedBuild: number): void {
   if (highestPublishedBuild > 0 && newBuild <= highestPublishedBuild) {
     fail(
       `build number ${newBuild} is not greater than the highest already published (${highestPublishedBuild}). ` +
@@ -204,6 +214,48 @@ function main(): void {
         "Bump CURRENT_PROJECT_VERSION in Version.xcconfig and re-tag.",
     );
   }
+}
+
+/**
+ * `--precheck` mode: run only the monotonic build-number gate, before anything
+ * is built. The release workflow calls this in its gates phase so a stale
+ * CURRENT_PROJECT_VERSION fails in seconds instead of after two notarizations
+ * (the full check still runs again at generation time).
+ */
+function precheckMain(argv: string[]): void {
+  const values = new Map<string, string>();
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    if (!arg.startsWith("--")) fail(`unexpected argument: ${arg}`);
+    const next = argv[i + 1];
+    if (next === undefined) fail(`${arg} requires a value`);
+    values.set(arg.slice(2), next);
+    i++;
+  }
+
+  const shortVersion = values.get("short-version")?.trim();
+  const build = values.get("build")?.trim();
+  if (!shortVersion || !build) fail("--precheck requires --short-version and --build");
+  if (!/^\d+$/.test(build)) fail(`--build must be a plain integer (CFBundleVersion), got "${build}"`);
+  const previous = values.get("previous")?.trim();
+
+  const previousXML = previous && existsSync(previous) ? readFileSync(previous, "utf8") : undefined;
+  const { highestPublishedBuild } = mergePrevious(previousXML, shortVersion);
+  assertBuildIsNewer(Number(build), highestPublishedBuild);
+  console.log(
+    `appcast: precheck OK — build ${build} > highest published build (${highestPublishedBuild || "none yet"})`,
+  );
+}
+
+function main(): void {
+  const options = parseArgs(process.argv.slice(2));
+
+  const previousXML = options.previous && existsSync(options.previous)
+    ? readFileSync(options.previous, "utf8")
+    : undefined;
+
+  const { kept, highestPublishedBuild } = mergePrevious(previousXML, options.shortVersion);
+  assertBuildIsNewer(Number(options.build), highestPublishedBuild);
 
   const pubDate = new Date().toUTCString();
   const items = [renderItem(options, pubDate), ...kept];
@@ -228,4 +280,9 @@ function main(): void {
   );
 }
 
-main();
+const rawArgv = process.argv.slice(2);
+if (rawArgv.includes("--precheck")) {
+  precheckMain(rawArgv.filter((arg) => arg !== "--precheck"));
+} else {
+  main();
+}
