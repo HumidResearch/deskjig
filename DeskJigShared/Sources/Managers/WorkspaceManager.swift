@@ -592,6 +592,28 @@ public class WorkspaceManager: ObservableObject {
 
         // Emit change event for reactive UI updates
         workspaceChangesPublisher.send(.deleted(workspace))
+
+        cleanupTmuxSessions(for: workspace)
+    }
+
+    /// Fire-and-forget kill of the deleted workspace's tmux sessions so they
+    /// don't outlive it on the socket. Only runs when the user has tmux fast
+    /// switching enabled and tmux is actually installed.
+    private func cleanupTmuxSessions(for workspace: Workspace) {
+        guard UserDefaults.standard.bool(forKey: "tmuxEnabled") else { return }
+
+        Task.detached(priority: .utility) {
+            let commandService = TmuxCommandService()
+            guard await commandService.isAvailable else { return }
+
+            let runId = "delete-\(workspace.id.uuidString.prefix(8))"
+            DeskJigLog.info(.tmux, "Cleaning up tmux sessions for deleted workspace", fields: [
+                "workspaceId": workspace.id.uuidString,
+                "workspaceName": workspace.name
+            ], runId: runId)
+            await TmuxSessionManager(commandService: commandService)
+                .cleanupWorkspaceSessions(workspaceId: workspace.id.uuidString, runId: runId)
+        }
     }
 
     @MainActor

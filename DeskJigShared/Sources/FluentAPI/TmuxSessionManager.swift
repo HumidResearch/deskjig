@@ -432,68 +432,6 @@ public actor TmuxSessionManager {
         return clientPidToWindowId
     }
 
-    /// Performs the fast switch: swap tmux sessions in existing terminal windows.
-    public func switchSessions(
-        targetWindows: [WorkspaceWindow],
-        clientWindowMap: [pid_t: CGWindowID],
-        runId: String
-    ) async -> [(windowId: CGWindowID, sessionName: String)] {
-        let clients = await listClients()
-        guard !clients.isEmpty else {
-            return []
-        }
-
-        let startTime = Date()
-
-        // Build a reverse map: CGWindowID -> client TTY
-        var windowIdToClientTTY: [CGWindowID: String] = [:]
-        for client in clients {
-            if let windowId = clientWindowMap[client.clientPID] {
-                windowIdToClientTTY[windowId] = client.clientTTY
-            }
-        }
-
-        let tmuxTargets = targetWindows.compactMap { window -> (WorkspaceWindow, TmuxSessionState)? in
-            guard let state = window.tmuxState else { return nil }
-            return (window, state)
-        }
-
-        var switched: [(windowId: CGWindowID, sessionName: String)] = []
-        var availableClients = Array(windowIdToClientTTY)
-
-        for (_, state) in tmuxTargets {
-            guard !availableClients.isEmpty else { break }
-
-            let (windowId, clientTTY) = availableClients.removeFirst()
-
-            do {
-                try await commandService.switchClient(clientTTY: clientTTY, toSession: state.sessionName)
-                switched.append((windowId: windowId, sessionName: state.sessionName))
-
-                DeskJigLog.debug(.tmux, "Client switched", fields: [
-                    "clientTTY": clientTTY,
-                    "targetSession": state.sessionName,
-                    "windowId": "\(windowId)"
-                ], runId: runId)
-            } catch {
-                DeskJigLog.debug(.tmux, "Failed to switch client", fields: [
-                    "clientTTY": clientTTY,
-                    "targetSession": state.sessionName,
-                    "error": error.localizedDescription
-                ], runId: runId)
-            }
-        }
-
-        let durationMs = Int(Date().timeIntervalSince(startTime) * 1000)
-        DeskJigLog.debug(.tmux, "switchSessions complete", fields: [
-            "switchedCount": "\(switched.count)",
-            "targetCount": "\(tmuxTargets.count)",
-            "durationMs": "\(durationMs)"
-        ], runId: runId)
-
-        return switched
-    }
-
     /// After a quick-switch terminal phase completes, rebind any still-attached
     /// quick-switch clients from an old directory token onto the target slot sessions.
     public func reconcileAttachedQuickSwitchClients(
