@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an improvement or new capability
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation where you miss this feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: pr
+    attributes:
+      label: Would you be willing to open a PR for this?
+      options:
+        - "No"
+        - "Yes, with some guidance"
+        - "Yes"
+    validations:
+      required: true

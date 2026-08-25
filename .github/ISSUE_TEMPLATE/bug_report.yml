@@ -1,0 +1,46 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: ["bug", "needs-triage"]
+body:
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "e.g. 15.5"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DeskJig version
+      description: About window, or `deskjig --version`
+      placeholder: "e.g. 1.0.1"
+    validations:
+      required: true
+  - type: input
+    id: monitors
+    attributes:
+      label: Monitor setup
+      placeholder: "e.g. built-in + 1 external 4K, external is main"
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Steps to reproduce if you have them.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        For workspace-restore issues, include the restore run ID
+        (`restore_HHMMSS_xxxxxx`) and any relevant lines from `deskjig logs`
+        (or `bun run logs` from a checkout).
+      render: text

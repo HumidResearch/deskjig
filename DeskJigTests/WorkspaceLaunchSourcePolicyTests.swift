@@ -45,10 +45,10 @@ struct WorkspaceLaunchSourcePolicyTests {
                     appName: "Ghostty",
                     windowTitle: "Ghostty",
                     terminalKey: "persisted-key",
-                    openPath: "/Users/brutus",
+                    openPath: "/Users/testuser",
                     tmuxState: TmuxSessionState(
                         sessionName: "persisted-session",
-                        initialWorkingDirectory: "/Users/brutus"
+                        initialWorkingDirectory: "/Users/testuser"
                     )
                 )
             ]
@@ -59,11 +59,11 @@ struct WorkspaceLaunchSourcePolicyTests {
                 bundleIdentifier: OpenByPathBundleIdentifiers.ghostty,
                 appName: "Ghostty",
                 windowTitle: "Ghostty",
-                terminalKey: "qs_guidebook_s0",
-                openPath: "/Users/brutus/code/guidebook",
+                terminalKey: "qs_fieldnotes_s0",
+                openPath: "/Users/testuser/code/fieldnotes",
                 tmuxState: TmuxSessionState(
                     sessionName: "persisted-session",
-                    initialWorkingDirectory: "/Users/brutus/code/guidebook"
+                    initialWorkingDirectory: "/Users/testuser/code/fieldnotes"
                 )
             )
         ])

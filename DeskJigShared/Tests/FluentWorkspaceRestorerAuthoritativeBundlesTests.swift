@@ -19,10 +19,10 @@ struct FluentWorkspaceRestorerAuthoritativeBundlesTests {
             bundleIdentifier: OpenByPathBundleIdentifiers.kitty,
             appName: "kitty",
             windowTitle: "bento:tmux:managed:0",
-            openPath: "/Users/andrew/code/nexus",
+            openPath: "/Users/testuser/code/acme",
             tmuxState: TmuxSessionState(
-                sessionName: "bento_qs_nexusabc123_s0",
-                initialWorkingDirectory: "/Users/andrew/code/nexus"
+                sessionName: "bento_qs_acmeabc123_s0",
+                initialWorkingDirectory: "/Users/testuser/code/acme"
             )
         )
 
@@ -33,7 +33,7 @@ struct FluentWorkspaceRestorerAuthoritativeBundlesTests {
                 windowId: 999, // Not present in bundle map to emulate capture gap.
                 decision: .switchTmuxSession(
                     windowId: 999,
-                    sessionName: "bento_qs_nexusabc123_s0",
+                    sessionName: "bento_qs_acmeabc123_s0",
                     targetFrame: .zero
                 ),
                 durationMs: 7,

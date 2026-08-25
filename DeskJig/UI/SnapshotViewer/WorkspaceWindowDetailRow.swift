@@ -664,7 +664,7 @@ struct ScreenOption: Identifiable, Hashable {
         bundleIdentifier: "com.todesktop.230313mzl4w4u92",
         appName: "Cursor",
         windowTitle: "deskjig - Cursor",
-        openPath: "/Users/andrew/code/deskjig",
+        openPath: "/Users/testuser/code/deskjig",
         screenIndex: 0,
         relativeFrame: RelativeWindowFrame(xPercent: 0, yPercent: 0, widthPercent: 0.5, heightPercent: 1.0)
     )

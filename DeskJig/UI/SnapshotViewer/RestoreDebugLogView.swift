@@ -290,7 +290,7 @@ private struct LogEntryRow: View {
     let manager = LaunchStrategyManager()
     manager.startLaunch()
     manager.addLogEntry(phase: .start, message: "Beginning restoration", data: ["dryRun": "false"])
-    manager.addLogEntry(phase: .launch, taskId: "cursor-0", message: "Launching Cursor", data: ["app": "Cursor", "method": "cli", "directory": "/Users/andrew/code/deskjig"])
+    manager.addLogEntry(phase: .launch, taskId: "cursor-0", message: "Launching Cursor", data: ["app": "Cursor", "method": "cli", "directory": "/Users/testuser/code/deskjig"])
     manager.addLogEntry(phase: .match, taskId: "cursor-0", message: "Matched Cursor window", data: ["confidence": "100%", "windowId": "12345", "found": "true"])
     manager.addLogEntry(phase: .position, taskId: "cursor-0", message: "Positioned window", data: ["success": "true", "targetX": "0", "targetY": "25"])
     manager.addLogEntry(phase: .chrome, taskId: "chrome-1", message: "Opening profile tabs", data: ["profile": "Default", "tabCount": "5"])

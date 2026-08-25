@@ -14,8 +14,8 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Xcode matcher rejects title fallback when document path points outside target directory")
     func rejectsCrossDirectoryTitleFallback() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
-        let rootDocPath = "/Users/andrewarmenante/code/deskjig/DeskJig/UI/DesignSystem/DSWindowDragControl.swift"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
+        let rootDocPath = "/Users/testuser/code/deskjig/DeskJig/UI/DesignSystem/DSWindowDragControl.swift"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(
@@ -39,8 +39,8 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Xcode matcher treats files inside target directory as documentPath matches")
     func matchesDocumentPathForNestedFiles() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
-        let nestedFilePath = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig/DeskJig/UI/DesignSystem/DSWindowDragControl.swift"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
+        let nestedFilePath = "/Users/testuser/.codex/worktrees/52c3/deskjig/DeskJig/UI/DesignSystem/DSWindowDragControl.swift"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(
@@ -66,7 +66,7 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Xcode matcher may use title fallback when document path is unavailable")
     func allowsTitleFallbackWithoutDocPath() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(
@@ -92,7 +92,7 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Multiple same-title Xcode windows with unknown docs does not title-match")
     func rejectsAmbiguousSameTitleWithoutDocumentPath() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(
@@ -121,7 +121,7 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Xcode matcher returns nil on path-strict loose-title ambiguity")
     func rejectsAmbiguousLooseTitleFallback() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(
@@ -150,8 +150,8 @@ struct FluentXcodeLauncherMatcherTests {
 
     @Test("Path-strict still prefers exact document path when titles are ambiguous")
     func prefersExactDocumentPathOverAmbiguousTitles() {
-        let targetDirectory = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig"
-        let exactPath = "/Users/andrewarmenante/.codex/worktrees/52c3/deskjig/DeskJig.xcodeproj"
+        let targetDirectory = "/Users/testuser/.codex/worktrees/52c3/deskjig"
+        let exactPath = "/Users/testuser/.codex/worktrees/52c3/deskjig/DeskJig.xcodeproj"
         let snapshot = makeSnapshot(
             windows: [
                 makeXcodeWindow(

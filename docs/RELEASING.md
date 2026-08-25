@@ -7,10 +7,6 @@ Everything is driven by one thing: **pushing a `v*` tag**.
 `.github/workflows/release.yml` does the rest — build, sign, notarize, staple,
 package, sign the update, regenerate the feed, publish.
 
-> **Verification host.** All release verification (installing the DMG, launching
-> the app, watching an auto-update land) happens on the **Mac Studio**. The Mac
-> Mini is not used in this effort.
-
 ---
 
 ## Part 1 — One-time setup
@@ -98,7 +94,7 @@ Now:
 
 ### 4. Push the secrets to GitHub
 
-Run these yourself, from the repo root, with `gh` authenticated as `armynante`.
+Run these yourself, from the repo root, with `gh` authenticated as a repo admin.
 The values never leave your machine except as GitHub secrets.
 
 ```bash
@@ -218,7 +214,7 @@ gh run watch -R HumidResearch/deskjig
 
 Roughly 20–40 minutes, most of it two notarization round trips.
 
-### 4. Verify (on the Mac Studio)
+### 4. Verify (on a real Mac, ideally not the build machine)
 
 ```bash
 # Download what was actually published
