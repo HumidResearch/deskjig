@@ -190,7 +190,7 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
 
         let result = await MainActor.run {
             AppDelegate.lookupQuickSwitchWorkspace(
-                cwd: "/Users/brutus/code/deskjig",
+                cwd: "/Users/testuser/code/deskjig",
                 workspaceNameOverride: nil,
                 workspaceIDOverrideRaw: workspace.id.uuidString,
                 savedWorkspaces: [workspace],
@@ -210,7 +210,7 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
 
         let initial = await MainActor.run {
             AppDelegate.lookupQuickSwitchWorkspace(
-                cwd: "/Users/brutus/code/deskjig-wt/test_2",
+                cwd: "/Users/testuser/code/deskjig-wt/test_2",
                 workspaceNameOverride: workspace.name,
                 workspaceIDOverrideRaw: nil,
                 savedWorkspaces: [],
@@ -222,7 +222,7 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
 
         let reloaded = await MainActor.run {
             AppDelegate.lookupQuickSwitchWorkspace(
-                cwd: "/Users/brutus/code/deskjig-wt/test_2",
+                cwd: "/Users/testuser/code/deskjig-wt/test_2",
                 workspaceNameOverride: workspace.name,
                 workspaceIDOverrideRaw: nil,
                 savedWorkspaces: [workspace],
@@ -241,7 +241,7 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
             bundleIdentifier: BundleRegistry.vscode,
             appName: "Cursor",
             windowTitle: "Dotfiles",
-            openPath: "/Users/brutus/.dotfiles"
+            openPath: "/Users/testuser/.dotfiles"
         )
         let workspace = Workspace(name: "Backend", workspaceWindows: [window])
 
@@ -305,10 +305,10 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
 
         let notification = AppDelegate.quickSwitchSkippedXcodeNotificationContent(
             for: result,
-            targetDirectoryPath: "/Users/brutus/code/guidebook"
+            targetDirectoryPath: "/Users/testuser/code/fieldnotes"
         )
 
-        #expect(notification?.title == "No Xcode project detected in guidebook. Skipping Xcode.")
+        #expect(notification?.title == "No Xcode project detected in fieldnotes. Skipping Xcode.")
         #expect(notification?.icon == "hammer.circle.fill")
         #expect(notification?.iconColor == .yellow)
     }
@@ -324,7 +324,7 @@ struct AppDelegateQuickSwitchChromeInjectionTests {
 
         let notification = AppDelegate.quickSwitchSkippedXcodeNotificationContent(
             for: result,
-            targetDirectoryPath: "/Users/brutus/code/deskjig"
+            targetDirectoryPath: "/Users/testuser/code/deskjig"
         )
 
         #expect(notification == nil)

@@ -396,9 +396,9 @@ struct QuickSwitchViewModelTests {
     @Test("QuickSwitch mixed matching keeps strict filtering and name-dominant ranking")
     func quickSwitchSearchRankingAndFiltering() {
         let directories = [
-            ScannedDirectory(name: "deskjig", path: "/Users/andrew/code/deskjig", rootFolder: "~/code"),
-            ScannedDirectory(name: "alexandria", path: "/Users/andrew/code/alexandria", rootFolder: "~/code"),
-            ScannedDirectory(name: "toolbox", path: "/Users/andrew/code/deskjig-tools/toolbox", rootFolder: "~/code")
+            ScannedDirectory(name: "deskjig", path: "/Users/testuser/code/deskjig", rootFolder: "~/code"),
+            ScannedDirectory(name: "almanac", path: "/Users/testuser/code/almanac", rootFolder: "~/code"),
+            ScannedDirectory(name: "toolbox", path: "/Users/testuser/code/deskjig-tools/toolbox", rootFolder: "~/code")
         ]
 
         let ranked = QuickSwitchSearch.rankedDirectories(
@@ -409,14 +409,14 @@ struct QuickSwitchViewModelTests {
         #expect(ranked.count == 2)
         #expect(ranked.first?.name == "deskjig")
         #expect(ranked.map(\.name).contains("toolbox"))
-        #expect(!ranked.map(\.name).contains("alexandria"))
+        #expect(!ranked.map(\.name).contains("almanac"))
     }
 
     @Test("QuickSwitch mixed matching accepts path tokens")
     func quickSwitchSearchPathTokens() {
         let directories = [
-            ScannedDirectory(name: "archive", path: "/Users/andrew/code/archived_code", rootFolder: "~/code"),
-            ScannedDirectory(name: "deskjig", path: "/Users/andrew/code/deskjig", rootFolder: "~/code")
+            ScannedDirectory(name: "archive", path: "/Users/testuser/code/archived_code", rootFolder: "~/code"),
+            ScannedDirectory(name: "deskjig", path: "/Users/testuser/code/deskjig", rootFolder: "~/code")
         ]
 
         let ranked = QuickSwitchSearch.rankedDirectories(
@@ -431,25 +431,25 @@ struct QuickSwitchViewModelTests {
     @Test("QuickSwitch favorites rank above stronger score matches")
     func quickSwitchSearchFavoritesPrecedeScore() {
         let directories = [
-            ScannedDirectory(name: "deskjig", path: "/Users/andrew/code/deskjig", rootFolder: "~/code"),
-            ScannedDirectory(name: "deskjig-tools", path: "/Users/andrew/code/deskjig-tools", rootFolder: "~/code")
+            ScannedDirectory(name: "deskjig", path: "/Users/testuser/code/deskjig", rootFolder: "~/code"),
+            ScannedDirectory(name: "deskjig-tools", path: "/Users/testuser/code/deskjig-tools", rootFolder: "~/code")
         ]
 
         let ranked = QuickSwitchSearch.rankedDirectories(
             directories,
             query: "deskjig",
-            favoriteDirectoryPaths: ["/Users/andrew/code/deskjig-tools"]
+            favoriteDirectoryPaths: ["/Users/testuser/code/deskjig-tools"]
         )
 
-        #expect(ranked.first?.path == "/Users/andrew/code/deskjig-tools")
+        #expect(ranked.first?.path == "/Users/testuser/code/deskjig-tools")
     }
 
     @Test("QuickSwitch same-name ranking prefers shorter paths")
     func quickSwitchSearchShorterPathPreference() {
         let directories = [
-            ScannedDirectory(name: "api", path: "/Users/andrew/code/team/api", rootFolder: "~/code"),
-            ScannedDirectory(name: "api", path: "/Users/andrew/code/api", rootFolder: "~/code"),
-            ScannedDirectory(name: "api", path: "/Users/andrew/projects/xx/api", rootFolder: "~/projects")
+            ScannedDirectory(name: "api", path: "/Users/testuser/code/team/api", rootFolder: "~/code"),
+            ScannedDirectory(name: "api", path: "/Users/testuser/code/api", rootFolder: "~/code"),
+            ScannedDirectory(name: "api", path: "/Users/testuser/projects/xx/api", rootFolder: "~/projects")
         ]
 
         let ranked = QuickSwitchSearch.rankedDirectories(
@@ -458,23 +458,23 @@ struct QuickSwitchViewModelTests {
             favoriteDirectoryPaths: []
         )
 
-        #expect(ranked[0].path == "/Users/andrew/code/api")
+        #expect(ranked[0].path == "/Users/testuser/code/api")
     }
 
     @Test("QuickSwitch empty query still keeps favorites at top")
     func quickSwitchSearchEmptyQueryFavoriteOrder() {
         let directories = [
-            ScannedDirectory(name: "beta", path: "/Users/andrew/code/beta", rootFolder: "~/code"),
-            ScannedDirectory(name: "alpha", path: "/Users/andrew/code/alpha", rootFolder: "~/code")
+            ScannedDirectory(name: "beta", path: "/Users/testuser/code/beta", rootFolder: "~/code"),
+            ScannedDirectory(name: "alpha", path: "/Users/testuser/code/alpha", rootFolder: "~/code")
         ]
 
         let ranked = QuickSwitchSearch.rankedDirectories(
             directories,
             query: "",
-            favoriteDirectoryPaths: ["/Users/andrew/code/beta"]
+            favoriteDirectoryPaths: ["/Users/testuser/code/beta"]
         )
 
-        #expect(ranked.first?.path == "/Users/andrew/code/beta")
+        #expect(ranked.first?.path == "/Users/testuser/code/beta")
     }
 
     @Test("QuickSwitch resolve prefers directory override over global and recent")
@@ -654,13 +654,13 @@ struct QuickSwitchViewModelTests {
         let rootFolders = [
             QuickSwitchRootFolder(
                 id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
-                path: "/Users/brutus/code",
+                path: "/Users/testuser/code",
                 scanDepth: 2,
                 isEnabled: true
             )
         ]
-        let directoryOverrides = ["/Users/brutus/code/nexus": UUID().uuidString]
-        let favoriteDirectories = ["/Users/brutus/code/nexus"]
+        let directoryOverrides = ["/Users/testuser/code/acme": UUID().uuidString]
+        let favoriteDirectories = ["/Users/testuser/code/acme"]
         let rootFolderData = try JSONEncoder().encode(rootFolders)
         let directoryOverrideData = try JSONEncoder().encode(directoryOverrides)
         let favoriteDirectoriesData = try JSONEncoder().encode(favoriteDirectories)
@@ -674,7 +674,7 @@ struct QuickSwitchViewModelTests {
             "\(userID).quickSwitch.directoryOverrides": directoryOverrideData,
             "\(userID).quickSwitch.favoriteDirectories": favoriteDirectoriesData,
             "\(userID).quickSwitch.globalDefaultWorkspaceId": "workspace-id-123",
-            "\(userID).quickSwitch.worktreeStoragePath": "/Users/brutus/.codex/worktrees",
+            "\(userID).quickSwitch.worktreeStoragePath": "/Users/testuser/.codex/worktrees",
             "\(userID).quickSwitch.worktreeBranchPrefix": "wt/",
             "quickSwitch.migrationOwner": userID
         ]
@@ -713,13 +713,13 @@ struct QuickSwitchViewModelTests {
         let rootFolders = [
             QuickSwitchRootFolder(
                 id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
-                path: "/Users/brutus/code",
+                path: "/Users/testuser/code",
                 scanDepth: 2,
                 isEnabled: true
             )
         ]
-        let directoryOverrides = ["/Users/brutus/code/nexus": UUID().uuidString]
-        let favoriteDirectories = ["/Users/brutus/code/nexus"]
+        let directoryOverrides = ["/Users/testuser/code/acme": UUID().uuidString]
+        let favoriteDirectories = ["/Users/testuser/code/acme"]
         let rootFolderData = try JSONEncoder().encode(rootFolders)
         let directoryOverrideData = try JSONEncoder().encode(directoryOverrides)
         let favoriteDirectoriesData = try JSONEncoder().encode(favoriteDirectories)
@@ -733,7 +733,7 @@ struct QuickSwitchViewModelTests {
             "\(userID).quickSwitch.directoryOverrides": directoryOverrideData,
             "\(userID).quickSwitch.favoriteDirectories": favoriteDirectoriesData,
             "\(userID).quickSwitch.globalDefaultWorkspaceId": "workspace-id-123",
-            "\(userID).quickSwitch.worktreeStoragePath": "/Users/brutus/.codex/worktrees",
+            "\(userID).quickSwitch.worktreeStoragePath": "/Users/testuser/.codex/worktrees",
             "\(userID).quickSwitch.worktreeBranchPrefix": "wt/",
             "quickSwitch.migrationOwner": userID
         ]
@@ -756,7 +756,7 @@ struct QuickSwitchViewModelTests {
         #expect(await MainActor.run { viewModel.directoryOverrides } == directoryOverrides)
         #expect(await MainActor.run { viewModel.favoriteDirectories } == Set(favoriteDirectories))
         #expect(await MainActor.run { viewModel.globalDefaultWorkspaceId } == "workspace-id-123")
-        #expect(await MainActor.run { viewModel.worktreeStoragePath } == "/Users/brutus/.codex/worktrees")
+        #expect(await MainActor.run { viewModel.worktreeStoragePath } == "/Users/testuser/.codex/worktrees")
         #expect(await MainActor.run { viewModel.worktreeBranchPrefix } == "wt/")
         #expect(await MainActor.run { viewModel.lastLegacyImportAt } != nil)
 
@@ -764,7 +764,7 @@ struct QuickSwitchViewModelTests {
         #expect(defaults.data(forKey: "quickSwitch.directoryOverrides") == directoryOverrideData)
         #expect(defaults.data(forKey: "quickSwitch.favoriteDirectories") == favoriteDirectoriesData)
         #expect(defaults.string(forKey: "quickSwitch.globalDefaultWorkspaceId") == "workspace-id-123")
-        #expect(defaults.string(forKey: "quickSwitch.worktreeStoragePath") == "/Users/brutus/.codex/worktrees")
+        #expect(defaults.string(forKey: "quickSwitch.worktreeStoragePath") == "/Users/testuser/.codex/worktrees")
         #expect(defaults.string(forKey: "quickSwitch.worktreeBranchPrefix") == "wt/")
     }
 

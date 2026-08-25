@@ -45,7 +45,7 @@ struct WorkspaceLayoutHealthTests {
 
     @Test("Zoom uses shared open path to choose project monitor against meeting monitor")
     func zoomLayoutResolvesProjectMonitorAgainstMeetingMonitor() {
-        let path = "/Users/example/code/nexus-web"
+        let path = "/Users/example/code/acme-web"
         let workspace = Workspace(
             name: "Zoom",
             workspaceWindows: [
@@ -69,7 +69,7 @@ struct WorkspaceLayoutHealthTests {
 
     @Test("xcode keeps same-path Ghostty and Xcode together")
     func xcodeLayoutResolvesPathBackedProjectMonitor() {
-        let path = "/Users/example/code/nexus"
+        let path = "/Users/example/code/acme"
         let workspace = Workspace(
             name: "xcode",
             workspaceWindows: [
@@ -188,8 +188,8 @@ struct WorkspaceLayoutHealthTests {
             workspaceWindows: [
                 makeWindow(app: "Codex", bundle: BundleRegistry.codex, frame: .init(xPercent: 0, yPercent: 0, widthPercent: 0.5, heightPercent: 1)),
                 makeWindow(app: "Google Chrome", bundle: BundleRegistry.chrome, frame: .init(xPercent: 0.5, yPercent: 0, widthPercent: 0.5, heightPercent: 1)),
-                makeWindow(app: "Ghostty", bundle: BundleRegistry.ghostty, openPath: "/Users/example/code/nexus", frame: .init(xPercent: 0, yPercent: 0, widthPercent: 0.7, heightPercent: 1)),
-                makeWindow(app: "Xcode", bundle: BundleRegistry.xcode, openPath: "/Users/example/code/nexus", frame: .init(xPercent: 0.7, yPercent: 0, widthPercent: 0.3, heightPercent: 1))
+                makeWindow(app: "Ghostty", bundle: BundleRegistry.ghostty, openPath: "/Users/example/code/acme", frame: .init(xPercent: 0, yPercent: 0, widthPercent: 0.7, heightPercent: 1)),
+                makeWindow(app: "Xcode", bundle: BundleRegistry.xcode, openPath: "/Users/example/code/acme", frame: .init(xPercent: 0.7, yPercent: 0, widthPercent: 0.3, heightPercent: 1))
             ]
         )
 

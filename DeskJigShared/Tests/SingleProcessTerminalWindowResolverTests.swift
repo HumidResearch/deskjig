@@ -10,7 +10,7 @@ struct SingleProcessTerminalWindowResolverTests {
 
     @Test("Decorated Terminal title exposes the managed tmux index")
     func decoratedTerminalTitleParsesManagedIndex() {
-        let title = "brutus — bento:tmux:managed:terminal:1 — /Users/brutus/code/deskjig"
+        let title = "testuser — bento:tmux:managed:terminal:1 — /Users/testuser/code/deskjig"
         #expect(ManagedTmuxWindowTitleMatcher.managedIndex(from: title) == 1)
         #expect(
             ManagedTmuxWindowTitleMatcher.matchesManagedIndex(
@@ -53,7 +53,7 @@ struct SingleProcessTerminalWindowResolverTests {
                 .init(
                     windowId: 36020,
                     frame: CGRect(x: 29, y: 59, width: 900, height: 700),
-                    title: "brutus — bento:tmux:managed:terminal:1 — /Users/brutus/code/deskjig",
+                    title: "testuser — bento:tmux:managed:terminal:1 — /Users/testuser/code/deskjig",
                     pid: 900
                 )
             ]
@@ -118,7 +118,7 @@ struct SingleProcessTerminalWindowResolverTests {
             claimedWindowIds: [],
             axCandidates: [
                 .init(windowId: 201, frame: CGRect(x: 0, y: 30, width: 800, height: 600), title: expectedTitle, pid: 700),
-                .init(windowId: 202, frame: CGRect(x: 1920, y: 30, width: 800, height: 600), title: "brutus — \(expectedTitle) — /tmp", pid: 700)
+                .init(windowId: 202, frame: CGRect(x: 1920, y: 30, width: 800, height: 600), title: "testuser — \(expectedTitle) — /tmp", pid: 700)
             ]
         )
 
@@ -145,7 +145,7 @@ struct SingleProcessTerminalWindowResolverTests {
                 .init(
                     windowId: nil,
                     frame: CGRect(x: 1921, y: 31, width: 1100, height: 700),
-                    title: "brutus — bento:tmux:managed:terminal:2 — /tmp",
+                    title: "testuser — bento:tmux:managed:terminal:2 — /tmp",
                     pid: 800
                 )
             ]

@@ -765,28 +765,28 @@ enum AgentHookInstaller {
     ```bash
     # Dev server running
     deskjig workspace quick-switch --approve \\
-      --subtext "nexus: localhost:3000 ready for testing" \\
+      --subtext "acme: localhost:3000 ready for testing" \\
       --url http://localhost:3000 --force-chrome \\
       --requester-bundle-id com.anthropic.claudefordesktop \\
       --requester-app Claude "$(pwd)"
 
     # Code review + docs reference
     deskjig workspace quick-switch --approve \\
-      --subtext "nexus: See relevant API docs for this change" \\
+      --subtext "acme: See relevant API docs for this change" \\
       --url https://docs.example.com/api \\
       --requester-bundle-id com.anthropic.claudefordesktop \\
       --requester-app Claude "$(pwd)"
 
     # GitHub PR list
     deskjig workspace quick-switch --approve \\
-      --subtext "guidebook: GitHub PR page ready to review" \\
-      --url https://github.com/armynante/guidebook/pulls --force-chrome \\
+      --subtext "fieldnotes: GitHub PR page ready to review" \\
+      --url https://github.com/example/fieldnotes/pulls --force-chrome \\
       --requester-bundle-id com.anthropic.claudefordesktop \\
       --requester-app Claude "$(pwd)"
 
     # Decision checkpoint needing user input
     deskjig workspace quick-switch --approve \\
-      --subtext "nexus: Need your decision on restore strategy A vs B" \\
+      --subtext "acme: Need your decision on restore strategy A vs B" \\
       --requester-bundle-id com.anthropic.claudefordesktop \\
       --requester-app Claude "$(pwd)"
     ```
@@ -798,7 +798,7 @@ enum AgentHookInstaller {
     Always use `--mode make-room` so DeskJig uses the animated slide preview path.
 
     ```bash
-    deskjig url-handoff --url https://github.com/armynante/guidebook/pulls --mode make-room \\
+    deskjig url-handoff --url https://github.com/example/fieldnotes/pulls --mode make-room \\
       --toast-message "Claude Code wants your attention: PR context" \\
       --toast-subtext "I opened the page I referenced. Close Preview Window to restore layout."
     ```

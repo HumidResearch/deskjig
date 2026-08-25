@@ -19,7 +19,7 @@ struct TmuxSessionManagerNamingTests {
 
     @Test("Quick Switch directory-slot session names are stable for same directory+slot")
     func quickSwitchSessionNamesStableByDirectorySlot() {
-        let directory = "/Users/andrew/code/deskjig"
+        let directory = "/Users/testuser/code/deskjig"
         let nameA = TmuxSessionManager.quickSwitchSessionName(forDirectoryPath: directory, slotIndex: 0)
         let nameB = TmuxSessionManager.quickSwitchSessionName(forDirectoryPath: directory, slotIndex: 0)
         let slotOneName = TmuxSessionManager.quickSwitchSessionName(forDirectoryPath: directory, slotIndex: 1)
@@ -31,7 +31,7 @@ struct TmuxSessionManagerNamingTests {
 
     @Test("Quick Switch session namespace is independent of workspace-scoped legacy names")
     func quickSwitchDoesNotUseWorkspaceScopedNamespace() {
-        let directory = "/Users/andrew/code/deskjig"
+        let directory = "/Users/testuser/code/deskjig"
         let workspaceId = "85f37006-1111-2222-3333-444444444444"
         let terminalKey = TmuxSessionManager.quickSwitchTerminalKey(forDirectoryPath: directory, slotIndex: 0)
 

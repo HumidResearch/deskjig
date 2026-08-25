@@ -14,8 +14,8 @@ import CoreGraphics
 struct XcodeCoverageTopologyTests {
     @Test("Missing root slot with duplicate worktree slot is detected")
     func detectsMissingAndDuplicatePathSlots() {
-        let rootPath = "/Users/andrewarmenante/code/nexus"
-        let worktreePath = "/Users/andrewarmenante/.codex/worktrees/ab12/nexus"
+        let rootPath = "/Users/testuser/code/acme"
+        let worktreePath = "/Users/testuser/.codex/worktrees/ab12/acme"
         let topology = XcodeWindowCoverageTopology(
             expectedPathSlots: [rootPath, worktreePath],
             observedPathSlots: [worktreePath, worktreePath]
@@ -28,8 +28,8 @@ struct XcodeCoverageTopologyTests {
 
     @Test("Topology ignores unresolved Xcode document paths for coverage")
     func unresolvedPathsDoNotCountAsCoverage() {
-        let rootPath = "/Users/andrewarmenante/code/nexus"
-        let worktreePath = "/Users/andrewarmenante/.codex/worktrees/ab12/nexus"
+        let rootPath = "/Users/testuser/code/acme"
+        let worktreePath = "/Users/testuser/.codex/worktrees/ab12/acme"
         let workspaceWindows = [
             makeWorkspaceWindow(path: rootPath),
             makeWorkspaceWindow(path: worktreePath)
