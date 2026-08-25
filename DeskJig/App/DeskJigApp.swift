@@ -402,7 +402,10 @@ private extension DeskJigApp {
             }
             .overlay {
                 if showingSplash {
-                    LottieSplashView {
+                    // Native block-assembly splash. Drop-in for the old
+                    // video-backed `LottieSplashView` — same `onComplete`
+                    // contract, same ~4.9s runtime, no bundled asset.
+                    BlockAssemblySplashView {
                         showingSplash = false
                     }
                     .transition(.opacity)
