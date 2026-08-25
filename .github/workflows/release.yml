@@ -4,7 +4,7 @@ name: Release
 #
 # Trigger: pushing a tag that looks like `v1.2.3`. The tag is the single input —
 # the version it carries must match Version.xcconfig or the run fails before
-# anything is built (see "Resolve version" below).
+# anything is built (see the gate job).
 #
 # What it produces, attached to the GitHub Release for the tag:
 #   DeskJig-<version>.dmg   notarized + stapled, containing the notarized +
@@ -19,9 +19,31 @@ name: Release
 # Sparkle's downloader follows HTTP redirects, so republishing the asset on every
 # release keeps a single permanently valid feed URL with no extra hosting.
 #
-# FORK SAFETY: every job here touches release secrets, so the whole workflow is
-# gated on the repository name. A fork that pushes a tag gets a skipped run, not
-# a run that fails halfway through trying to decrypt a certificate it does not have.
+# JOB GRAPH — split so a flake reruns minutes, not the whole universal build
+# (`gh run rerun --failed` reuses the artifacts of the jobs that passed):
+#
+#   gate     (ubuntu)  seconds: version/tag/xcconfig/Sparkle-key/build-number gates
+#   build    (macOS)   universal build, deep re-sign, verify;
+#                      artifacts: the ditto'd app zip + Sparkle's sign_update
+#   notarize (macOS)   both notarization rounds, DMG packaging, Gatekeeper;
+#                      artifact: the finished DMG
+#   publish  (macOS)   Sparkle-sign the DMG, generate appcast, publish release
+#
+# Seam rules this file must keep:
+#   - .app bundles cross artifact boundaries only inside a `ditto -c -k
+#     --keepParent --rsrc` zip — upload-artifact alone destroys signatures,
+#     symlinks and extended attributes. Re-verify after every extraction.
+#   - The signing keychain cannot cross a job boundary: every job that codesigns
+#     re-imports the certificate and deletes its keychain in an always() step.
+#   - $RUNNER_TEMP/notary-key.p8 must be re-materialized in the job that
+#     notarizes.
+#   - sign_update is a build-job product (found in the resolved SwiftPM
+#     artifacts); it is exported as its own artifact because the publish job
+#     needs it long after DerivedData is gone.
+#
+# FORK SAFETY: every job here touches release secrets, so every job is gated on
+# the repository name. A fork that pushes a tag gets a skipped run, not a run
+# that fails halfway through trying to decrypt a certificate it does not have.
 #
 # MANUAL RUNS: `workflow_dispatch` re-runs a release for an existing tag —
 # dispatch it ON the tag ref (`gh workflow run release.yml --ref v1.2.3`); a
@@ -51,9 +73,9 @@ on:
         type: boolean
         default: true
 
-# `gh release` needs write access to releases; nothing else does.
+# Only `gh release` needs write access; the publish job escalates for itself.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: deskjig-release-${{ github.ref }}
@@ -61,46 +83,35 @@ concurrency:
 
 env:
   MINIMUM_SYSTEM_VERSION: "14.0"
+  # 'true' only for a manual dispatch that kept the dry_run default on.
+  # Tag pushes always publish.
+  DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
 
 jobs:
-  release:
-    name: Build, sign, notarize, publish
-    # FORK GUARD — see the header. Keep this on every job that reads a secret.
+  # ---------------------------------------------------------------------------
+  # Everything that can be decided without building runs on a cheap Linux
+  # runner first, so a misconfigured release fails in seconds instead of after
+  # a macOS runner spin-up (or worse, a notarization).
+  # ---------------------------------------------------------------------------
+  gate:
+    name: Validate tag, version and feed
+    # FORK GUARD — see the header. Keep this on every job.
     if: github.repository == 'HumidResearch/deskjig'
-    # macos-latest, matching deskjig-tests.yml / deskjig-package.yml. A pinned
-    # image label would be more reproducible but silently stops existing when
-    # GitHub retires it, which is a worse failure mode for a release lane that
-    # runs a handful of times a year.
-    runs-on: macos-latest
-    timeout-minutes: 90
-    env:
-      # 'true' only for a manual dispatch that kept the dry_run default on.
-      # Tag pushes always publish.
-      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
 
     steps:
       - uses: actions/checkout@v5
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
-
-      - name: Xcode version
-        id: xcode_version
-        run: |
-          xcode-select -p
-          # Capture output first to avoid a broken-pipe crash on Xcode 26.
-          XCODE_OUTPUT=$(xcodebuild -version 2>&1 || true)
-          echo "$XCODE_OUTPUT"
-          VERSION=$(echo "$XCODE_OUTPUT" | head -n1 | awk '{print $2}')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      # ---------------------------------------------------------------------
-      # Gates. Everything that can be decided without building runs first, so a
-      # misconfigured release fails in seconds instead of after a notarization.
-      # ---------------------------------------------------------------------
 
       - name: Resolve version from tag and verify it matches the project
         id: version
@@ -138,8 +149,8 @@ jobs:
         run: |
           set -euo pipefail
           PLIST="DeskJig/Info.plist"
-          ED_KEY=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$PLIST" 2>/dev/null || echo "")
-          FEED=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$PLIST" 2>/dev/null || echo "")
+          ED_KEY=$(python3 -c "import plistlib,sys; print(plistlib.load(open('$PLIST','rb')).get('SUPublicEDKey',''))" 2>/dev/null || echo "")
+          FEED=$(python3 -c "import plistlib,sys; print(plistlib.load(open('$PLIST','rb')).get('SUFeedURL',''))" 2>/dev/null || echo "")
 
           if [[ -z "$ED_KEY" || "$ED_KEY" == "REPLACE_WITH_SPARKLE_PUBLIC_KEY" ]]; then
             echo "::error::$PLIST still carries the SUPublicEDKey placeholder. Generate the Sparkle keypair (docs/RELEASING.md), commit the PUBLIC half here, and re-tag. Shipping without it would produce updates no installed copy can verify."
@@ -161,8 +172,8 @@ jobs:
           # Pulled through `gh` rather than the public feed URL so this works
           # while the repo is still private (it flips public with v1.0.0).
           # Nothing to fetch on the very first release; appcast.ts then starts a
-          # fresh feed. Fetched here in the gates phase so the build-number
-          # precheck below can use it.
+          # fresh feed. Fetched here so the build-number precheck below can use
+          # it (the publish job re-fetches its own copy).
           rm -f "$RUNNER_TEMP/appcast-previous.xml"
           if gh release download --pattern appcast.xml --dir "$RUNNER_TEMP" 2>/dev/null; then
             mv "$RUNNER_TEMP/appcast.xml" "$RUNNER_TEMP/appcast-previous.xml"
@@ -172,9 +183,9 @@ jobs:
           fi
 
       # Version.xcconfig documents that a non-growing build number fails the
-      # release; without this precheck that failure fired inside appcast
-      # generation — after both notarizations were already spent. Same logic,
-      # same code (appcast.ts), just moved to where the fix costs seconds.
+      # release; this precheck fires it here, where the fix costs seconds —
+      # not inside appcast generation after both notarizations were spent.
+      # The full check still runs again at generation time.
       - name: Verify build number grows monotonically
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -190,10 +201,93 @@ jobs:
             --build "$BUILD_NUMBER" \
             ${PREVIOUS_ARGS[@]+"${PREVIOUS_ARGS[@]}"}
 
-      # ---------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Universal build + Developer ID signing. Produces the ditto'd app zip and
+  # Sparkle's sign_update tool as artifacts.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build and sign DeskJig.app
+    needs: gate
+    if: github.repository == 'HumidResearch/deskjig'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # git-restore-mtime needs full history to compute per-file last-touch
+          # commits (see deskjig-tests.yml for the caching rationale).
+          fetch-depth: 0
+
+      - name: Restore file modification times
+        uses: chetan/git-restore-mtime-action@v2
+
+      - name: Keep Xcode incremental builds valid across cache restores
+        run: defaults write com.apple.dt.XCBuild IgnoreFileSystemDeviceInodeChanges -bool YES
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Xcode version
+        id: xcode_version
+        run: |
+          xcode-select -p
+          # Capture output first to avoid a broken-pipe crash on Xcode 26.
+          XCODE_OUTPUT=$(xcodebuild -version 2>&1 || true)
+          echo "$XCODE_OUTPUT"
+          VERSION=$(echo "$XCODE_OUTPUT" | head -n1 | awk '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      # Same SPM cache family as the PR lanes (checkouts are arch-independent);
+      # a distinct `xcode-release` DerivedData purpose because universal objects
+      # must never share a key with the host-arch test builds.
+      - name: Cache SwiftPM checkouts
+        id: cache_spm
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-spm-
+
+      - name: Cache Xcode release build artifacts
+        id: cache_derived_data
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-xcode-release-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-xcode-release-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            ${{ runner.os }}-xcode-release-${{ steps.xcode_version.outputs.version }}-
+
+      - name: Cache summary
+        env:
+          SPM_HIT: ${{ steps.cache_spm.outputs.cache-hit }}
+          DD_HIT: ${{ steps.cache_derived_data.outputs.cache-hit }}
+        run: |
+          state() {
+            local hit="$1" dir="$2"
+            if [[ "$hit" == "true" ]]; then echo "hit"
+            elif [[ -d "$dir" && -n "$(ls -A "$dir" 2>/dev/null)" ]]; then echo "partial-hit (restore-key)"
+            else echo "miss"
+            fi
+          }
+          {
+            echo "### Cache"
+            echo "| cache | state | size |"
+            echo "| --- | --- | --- |"
+            echo "| SwiftPM checkouts | $(state "$SPM_HIT" build/SourcePackages) | $(du -sh build/SourcePackages 2>/dev/null | cut -f1 || echo 0) |"
+            echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | $(du -sh build/DerivedData 2>/dev/null | cut -f1 || echo 0) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # -----------------------------------------------------------------------
       # Signing material. All of it lands in RUNNER_TEMP, which is wiped with
       # the runner; nothing is written into the workspace.
-      # ---------------------------------------------------------------------
+      # -----------------------------------------------------------------------
 
       - name: Import Developer ID certificate
         id: signing
@@ -250,21 +344,9 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Signing as: $IDENTITY (team $TEAM_ID)"
 
-      - name: Write notarization API key
-        env:
-          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${NOTARY_KEY_P8:-}" ]]; then
-            echo "::error::Secret NOTARY_KEY_P8 is not set."
-            exit 1
-          fi
-          echo -n "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
-          chmod 600 "$RUNNER_TEMP/notary-key.p8"
-
-      # ---------------------------------------------------------------------
+      # -----------------------------------------------------------------------
       # Build.
-      # ---------------------------------------------------------------------
+      # -----------------------------------------------------------------------
 
       - name: Build DeskJig.app (Release, Developer ID)
         env:
@@ -278,6 +360,7 @@ jobs:
           # timestamp. Hardened runtime is already YES on both the app and the
           # CLI targets, so it does not need forcing here.
           bun run scripts/build-deskjig.ts --target app --release --universal \
+            --cloned-source-packages build/SourcePackages \
             CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" \
             "DEVELOPMENT_TEAM=$TEAM_ID" \
@@ -325,8 +408,8 @@ jobs:
       - name: Verify build output
         id: app
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          BUILD_NUMBER: ${{ steps.version.outputs.build }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          BUILD_NUMBER: ${{ needs.gate.outputs.build }}
         run: |
           set -euo pipefail
           APP="build/DerivedData/Build/Products/Release/DeskJig.app"
@@ -358,20 +441,182 @@ jobs:
           [[ "$CLI_VERSION" == "$VERSION" ]]    || { echo "::error::deskjig --version printed '$CLI_VERSION', expected '$VERSION'."; FAILED=1; }
           [[ "$FAILED" -eq 0 ]] || exit 1
 
-          # Signature sanity before we spend a notarization round on it.
+          # Signature sanity before anything downstream is spent on it.
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign --display --verbose=4 "$APP" 2>&1 | grep -E "^(Authority|TeamIdentifier|Identifier)=" || true
           codesign --verify --strict --verbose=2 "$HELPER"
 
           echo "app_path=$APP" >> "$GITHUB_OUTPUT"
 
-      # ---------------------------------------------------------------------
-      # Notarize the app, then the DMG that carries it. Two rounds, deliberately:
-      # stapling the app makes Gatekeeper accept it offline once it has been
-      # dragged out of the disk image, and stapling the DMG does the same for the
-      # image itself. Notarizing only the DMG leaves the extracted app dependent
-      # on an online Gatekeeper check.
-      # ---------------------------------------------------------------------
+      # upload-artifact does not preserve code signatures, symlinks or extended
+      # attributes — the .app crosses the job boundary only inside a ditto zip.
+      - name: Stage artifacts
+        env:
+          APP: ${{ steps.app.outputs.app_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage"
+          ditto -c -k --keepParent --rsrc "$APP" "$RUNNER_TEMP/stage/DeskJig.app.zip"
+
+          # sign_update ships inside Sparkle's own SwiftPM artifact bundle, which
+          # the app build resolved into build/SourcePackages. Exporting it here
+          # (instead of the publish job downloading a release tarball) guarantees
+          # the signing tool and the linked framework are the exact same Sparkle
+          # version. The publish job restores its executable bit after download.
+          SIGN_UPDATE=$(find build/SourcePackages/artifacts -type f -name sign_update -perm -u+x | head -n1)
+          if [[ -z "$SIGN_UPDATE" ]]; then
+            echo "::error::Could not find Sparkle's sign_update in the resolved SwiftPM artifacts."
+            find build/SourcePackages/artifacts -maxdepth 4 -type d || true
+            exit 1
+          fi
+          echo "Exporting $SIGN_UPDATE"
+          mkdir -p "$RUNNER_TEMP/stage-tools"
+          cp "$SIGN_UPDATE" "$RUNNER_TEMP/stage-tools/sign_update"
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskjig-app
+          path: ${{ runner.temp }}/stage/DeskJig.app.zip
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload Sparkle sign_update artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkle-sign-update
+          path: ${{ runner.temp }}/stage-tools/sign_update
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Clean up signing material
+        if: always()
+        env:
+          KEYCHAIN_PATH: ${{ steps.signing.outputs.keychain }}
+        run: |
+          rm -f "$RUNNER_TEMP/developer-id.p12" || true
+          if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskjig-release-build-log
+          path: build/deskjig-build.app.log
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Notarize the app, then the DMG that carries it. Two rounds, deliberately:
+  # stapling the app makes Gatekeeper accept it offline once it has been
+  # dragged out of the disk image, and stapling the DMG does the same for the
+  # image itself. Notarizing only the DMG leaves the extracted app dependent
+  # on an online Gatekeeper check.
+  #
+  # The two notarytool waits are wall-clock-bound with zero CPU and strictly
+  # serial (the DMG must contain the already-stapled app). Isolating them means
+  # an Apple-side flake reruns ~2 minutes of work, not the universal build.
+  # ---------------------------------------------------------------------------
+  notarize:
+    name: Notarize app, package and notarize DMG
+    needs: [gate, build]
+    if: github.repository == 'HumidResearch/deskjig'
+    runs-on: macos-latest
+    # Generous: two notarytool submissions at --timeout 45m each, worst case.
+    timeout-minutes: 100
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # No checkout: this job works exclusively on the build artifact.
+      - name: Download app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deskjig-app
+          path: ${{ runner.temp }}/incoming
+
+      - name: Extract and verify the signed app
+        id: app
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/app"
+          rm -rf "$WORK"
+          mkdir -p "$WORK"
+          ditto -x -k "$RUNNER_TEMP/incoming/DeskJig.app.zip" "$WORK"
+          APP="$WORK/DeskJig.app"
+          if [[ ! -d "$APP" ]]; then
+            echo "::error::DeskJig.app missing after extraction."
+            ls -la "$WORK" || true
+            exit 1
+          fi
+
+          # Signature-destroying artifact transfer is the single most likely way
+          # a job split breaks. Fail here, in seconds, not at Gatekeeper.
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          if [[ ! -L "$APP/Contents/Frameworks/Sparkle.framework/Versions/Current" ]]; then
+            echo "::error::Sparkle.framework/Versions/Current is no longer a symlink — the artifact transfer flattened the bundle."
+            exit 1
+          fi
+
+          echo "app_path=$APP" >> "$GITHUB_OUTPUT"
+
+      # The signing keychain cannot cross a job boundary; re-import for the DMG
+      # signature. Cheap and idempotent.
+      - name: Import Developer ID certificate
+        id: signing
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MACOS_CERTIFICATE_P12:-}" ]]; then
+            echo "::error::Secret MACOS_CERTIFICATE_P12 is not set."
+            exit 1
+          fi
+
+          CERT_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/deskjig-release.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+
+          echo -n "$MACOS_CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f "$CERT_PATH"
+
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | grep "Developer ID Application" \
+            | head -n1 \
+            | sed -n 's/.*"\(.*\)"$/\1/p')
+
+          if [[ -z "$IDENTITY" ]]; then
+            echo "::error::No 'Developer ID Application' identity found in the imported certificate."
+            exit 1
+          fi
+
+          {
+            echo "identity=$IDENTITY"
+            echo "keychain=$KEYCHAIN_PATH"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write notarization API key
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${NOTARY_KEY_P8:-}" ]]; then
+            echo "::error::Secret NOTARY_KEY_P8 is not set."
+            exit 1
+          fi
+          echo -n "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
+          chmod 600 "$RUNNER_TEMP/notary-key.p8"
 
       - name: Notarize and staple DeskJig.app
         env:
@@ -395,7 +640,7 @@ jobs:
         id: dmg
         env:
           APP: ${{ steps.app.outputs.app_path }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.gate.outputs.version }}
         run: |
           set -euo pipefail
           # hdiutil rather than create-dmg: no Homebrew install, no cask, and the
@@ -406,8 +651,8 @@ jobs:
           ditto "$APP" "$STAGE/DeskJig.app"
           ln -s /Applications "$STAGE/Applications"
 
-          mkdir -p dist
-          DMG="dist/DeskJig-$VERSION.dmg"
+          mkdir -p "$RUNNER_TEMP/dist"
+          DMG="$RUNNER_TEMP/dist/DeskJig-$VERSION.dmg"
           rm -f "$DMG"
           hdiutil create \
             -volname "DeskJig $VERSION" \
@@ -447,14 +692,65 @@ jobs:
           spctl --assess --type execute --verbose=4 "$APP"
           spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"
 
-      # ---------------------------------------------------------------------
-      # Sparkle feed.
-      # ---------------------------------------------------------------------
+      # A DMG is a flat, signature-embedded file — it crosses the artifact
+      # boundary as-is, no ditto zip needed.
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskjig-dmg
+          path: ${{ runner.temp }}/dist/DeskJig-${{ needs.gate.outputs.version }}.dmg
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Clean up signing material
+        if: always()
+        env:
+          KEYCHAIN_PATH: ${{ steps.signing.outputs.keychain }}
+        run: |
+          rm -f "$RUNNER_TEMP/notary-key.p8" "$RUNNER_TEMP/developer-id.p12" || true
+          if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Sparkle-sign the DMG, generate the appcast, publish the GitHub Release.
+  # macOS runner: sign_update is a Mach-O binary.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Sparkle feed and GitHub Release
+    needs: [gate, notarize]
+    if: github.repository == 'HumidResearch/deskjig'
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # Needed for scripts/appcast.ts and release_notes/.
+      - uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deskjig-dmg
+          path: dist
+
+      - name: Download Sparkle sign_update artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sparkle-sign-update
+          path: ${{ runner.temp }}/tools
 
       - name: Sign the DMG for Sparkle
         id: sparkle
         env:
-          DMG: ${{ steps.dmg.outputs.dmg_path }}
+          VERSION: ${{ needs.gate.outputs.version }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           set -euo pipefail
@@ -463,17 +759,16 @@ jobs:
             exit 1
           fi
 
-          # sign_update ships inside Sparkle's own SwiftPM artifact bundle, which
-          # the app build already resolved into DerivedData. Using it (instead of
-          # downloading a release tarball) guarantees the signing tool and the
-          # linked framework are the exact same Sparkle version.
-          SIGN_UPDATE=$(find build/DerivedData/SourcePackages/artifacts -type f -name sign_update -perm -u+x | head -n1)
-          if [[ -z "$SIGN_UPDATE" ]]; then
-            echo "::error::Could not find Sparkle's sign_update in the resolved SwiftPM artifacts."
-            find build/DerivedData/SourcePackages/artifacts -maxdepth 4 -type d || true
+          DMG="dist/DeskJig-$VERSION.dmg"
+          if [[ ! -f "$DMG" ]]; then
+            echo "::error::Expected DMG at $DMG."
+            ls -la dist || true
             exit 1
           fi
-          echo "Using $SIGN_UPDATE"
+
+          # Artifact transfer drops the executable bit; restore it.
+          SIGN_UPDATE="$RUNNER_TEMP/tools/sign_update"
+          chmod +x "$SIGN_UPDATE"
 
           KEY_FILE="$RUNNER_TEMP/sparkle-ed-key"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
@@ -493,15 +788,34 @@ jobs:
 
           # The signature itself is not secret (the public key verifies it), but
           # masking keeps the raw private-key-adjacent output out of the log.
-          echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
-          echo "length=$LENGTH" >> "$GITHUB_OUTPUT"
+          {
+            echo "signature=$SIGNATURE"
+            echo "length=$LENGTH"
+            echo "dmg_path=$DMG"
+          } >> "$GITHUB_OUTPUT"
           echo "Signed DMG: $LENGTH bytes"
+
+      - name: Fetch the currently published appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Same fetch as the gate job — repeated here because jobs can be hours
+          # apart on a rerun and the feed must be merged against what is
+          # published NOW, not what was published when the gates ran.
+          rm -f "$RUNNER_TEMP/appcast-previous.xml"
+          if gh release download --pattern appcast.xml --dir "$RUNNER_TEMP" 2>/dev/null; then
+            mv "$RUNNER_TEMP/appcast.xml" "$RUNNER_TEMP/appcast-previous.xml"
+            echo "Previous appcast fetched ($(wc -c < "$RUNNER_TEMP/appcast-previous.xml") bytes)."
+          else
+            echo "No published appcast yet — starting a new feed."
+          fi
 
       - name: Generate appcast.xml
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          BUILD_NUMBER: ${{ steps.version.outputs.build }}
-          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          BUILD_NUMBER: ${{ needs.gate.outputs.build }}
+          TAG: ${{ needs.gate.outputs.tag }}
           SIGNATURE: ${{ steps.sparkle.outputs.signature }}
           LENGTH: ${{ steps.sparkle.outputs.length }}
         run: |
@@ -529,16 +843,12 @@ jobs:
 
           cat dist/appcast.xml
 
-      # ---------------------------------------------------------------------
-      # Publish.
-      # ---------------------------------------------------------------------
-
       - name: Dry run — stop before publish
         if: env.DRY_RUN == 'true'
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ steps.version.outputs.tag }}
-          DMG: ${{ steps.dmg.outputs.dmg_path }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          TAG: ${{ needs.gate.outputs.tag }}
+          DMG: ${{ steps.sparkle.outputs.dmg_path }}
         run: |
           set -euo pipefail
           {
@@ -556,9 +866,9 @@ jobs:
         if: env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
-          DMG: ${{ steps.dmg.outputs.dmg_path }}
+          TAG: ${{ needs.gate.outputs.tag }}
+          VERSION: ${{ needs.gate.outputs.version }}
+          DMG: ${{ steps.sparkle.outputs.dmg_path }}
         run: |
           set -euo pipefail
           # A tag carrying a prerelease suffix must not become "latest" — the
@@ -588,7 +898,7 @@ jobs:
         if: env.DRY_RUN != 'true'
         continue-on-error: true
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.gate.outputs.version }}
         run: |
           set -uo pipefail
           # This is the exact URL in Info.plist's SUFeedURL. It 302-redirects to
@@ -607,20 +917,6 @@ jobs:
             echo "::warning::$FEED is not publicly reachable (expected while the repository is private)."
           fi
 
-      - name: Clean up signing material
+      - name: Clean up Sparkle key
         if: always()
-        env:
-          KEYCHAIN_PATH: ${{ steps.signing.outputs.keychain }}
-        run: |
-          rm -f "$RUNNER_TEMP/notary-key.p8" "$RUNNER_TEMP/sparkle-ed-key" "$RUNNER_TEMP/developer-id.p12" || true
-          if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
-            security delete-keychain "$KEYCHAIN_PATH" || true
-          fi
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deskjig-release-build-log
-          path: build/deskjig-build.app.log
-          if-no-files-found: ignore
+        run: rm -f "$RUNNER_TEMP/sparkle-ed-key" || true
