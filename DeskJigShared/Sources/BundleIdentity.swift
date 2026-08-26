@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single source of truth for DeskJig's bundle-level identity strings. 
+/// Single source of truth for DeskJig's bundle-level identity strings.
 ///
 /// **Every value here is a legacy identifier inherited from the app's commercial
 /// predecessor and MUST NOT change.** Existing installs key their macOS permission
