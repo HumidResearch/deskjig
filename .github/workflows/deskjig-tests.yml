@@ -113,10 +113,10 @@ jobs:
         uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/DerivedData
-          key: ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          key: ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
           restore-keys: |
-            ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
-            ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-
 
       - name: Cache summary
         env:
@@ -152,17 +152,32 @@ jobs:
           bun scripts/test-deskjig.ts --plan headless --no-signing \
             --cloned-source-packages build/SourcePackages
 
+      # Cache entries are immutable per key: saving an EMPTY directory
+      # permanently poisons that key — every later run restores nothing, skips
+      # its save on the "hit", and quietly pays full cold builds until the key
+      # changes (this happened; the `-v3` purpose bump above evicted it). Only
+      # save directories that actually have content.
+      - name: Check caches have content worth saving
+        id: cache_content
+        if: always()
+        run: |
+          nonempty() { [[ -d "$1" && -n "$(ls -A "$1" 2>/dev/null)" ]] && echo true || echo false; }
+          {
+            echo "spm=$(nonempty build/SourcePackages)"
+            echo "derived_data=$(nonempty build/DerivedData)"
+          } >> "$GITHUB_OUTPUT"
+
       # Saved even when the test step failed (see the restore comment). Skipped
       # on an exact primary-key hit — the entry already exists and is immutable.
       - name: Save SwiftPM checkouts cache
-        if: always() && steps.cache_spm.outputs.cache-hit != 'true'
+        if: always() && steps.cache_spm.outputs.cache-hit != 'true' && steps.cache_content.outputs.spm == 'true'
         uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ steps.cache_spm.outputs.cache-primary-key }}
 
       - name: Save Xcode test build cache
-        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true'
+        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true' && steps.cache_content.outputs.derived_data == 'true'
         uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/DerivedData
