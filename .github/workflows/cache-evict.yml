@@ -1,0 +1,43 @@
+name: Evict Cache Key
+
+# Targeted eviction of a poisoned WarpBuild cache entry, replacing the old
+# remedy of bumping the key's version suffix (-v3 → -v4) workflow-wide.
+# The combined WarpBuilds/cache action's delete-cache input hits the cache
+# service's delete endpoint for the exact key; it does not fail when the key
+# does not exist. The cache *version* is derived from the path, so the path
+# here must match the one the entry was saved with.
+#
+# Usage:
+#   gh workflow run cache-evict.yml -f key=<exact key> -f path=build/DerivedData
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: "Exact cache key to delete"
+        required: true
+        type: string
+      path:
+        description: "Path the entry was saved with (drives the version hash)"
+        required: true
+        type: choice
+        options:
+          - build/DerivedData
+          - build/SourcePackages
+
+permissions:
+  contents: read
+
+jobs:
+  evict:
+    name: Delete cache entry
+    if: ${{ !github.event.repository.fork }}
+    runs-on: warp-macos-26-arm64-6x
+    timeout-minutes: 10
+    steps:
+      - name: Delete cache entry
+        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        with:
+          path: ${{ inputs.path }}
+          key: ${{ inputs.key }}
+          delete-cache: true

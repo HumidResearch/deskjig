@@ -147,6 +147,38 @@ jobs:
             echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | ${DD_SIZE:-0} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # WarpBuilds/cache exits green in every failure mode, so the two states
+      # that are never legitimate must be caught by hand. An EMPTY
+      # cache-primary-key output is the action's unique signature for "bailed
+      # before validating inputs" (WARPBUILD_RUNNER_VERIFICATION_TOKEN missing /
+      # cache service unreachable) — warn, don't fail: tests are still valid on
+      # a cold build. A matched key with a near-empty directory is a poisoned
+      # entry — fail hard, and evict the key with cache-evict.yml.
+      - name: Cache health guard
+        env:
+          SPM_PK: ${{ steps.cache_spm.outputs.cache-primary-key }}
+          DD_PK: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
+          DD_MK: ${{ steps.cache_derived_data.outputs.cache-matched-key }}
+          SPM_MK: ${{ steps.cache_spm.outputs.cache-matched-key }}
+        run: |
+          if [[ -z "$SPM_PK" || -z "$DD_PK" ]]; then
+            echo "::warning::WarpBuild cache token missing or service unavailable — restores/saves are silently disabled this run (cold build, results still valid)"
+          fi
+          check_poisoned() { # name dir matched_key floor_kib
+            local name="$1" dir="$2" mk="$3" floor="$4" kib
+            [[ -z "$mk" ]] && return 0
+            kib=$( (du -sk "$dir" 2>/dev/null || echo 0) | cut -f1 )
+            if (( kib < floor )); then
+              echo "::error::$name restore matched '$mk' but only ${kib} KiB materialized — poisoned entry; evict it via cache-evict.yml"
+              return 1
+            fi
+          }
+          check_poisoned "DerivedData" build/DerivedData "$DD_MK" 102400
+          check_poisoned "SwiftPM checkouts" build/SourcePackages "$SPM_MK" 5120
+          if [[ -n "$DD_PK" && -z "$DD_MK" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "::warning::DerivedData cache miss on main — expected a warm entry (cold once after a key bump is normal)"
+          fi
+
       - name: Run headless DeskJigTests plan
         # --no-signing: PR runners have no signing identity; the test host runs
         # with the linker's ad-hoc signature, which is fine for unit tests.
@@ -184,6 +216,27 @@ jobs:
         with:
           path: build/DerivedData
           key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
+
+      # The save action swallows every upload failure (by construction — no
+      # input changes that), so verify the entries actually exist. lookup-only
+      # skips the download; fail-on-cache-miss turns a vanished save red.
+      - name: Verify saved cache entries exist
+        if: always() && steps.cache_spm.outputs.cache-hit != 'true' && steps.cache_content.outputs.spm == 'true' && steps.cache_spm.outputs.cache-primary-key != ''
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        with:
+          path: build/SourcePackages
+          key: ${{ steps.cache_spm.outputs.cache-primary-key }}
+          lookup-only: true
+          fail-on-cache-miss: true
+
+      - name: Verify saved DerivedData entry exists
+        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true' && steps.cache_content.outputs.derived_data == 'true' && steps.cache_derived_data.outputs.cache-primary-key != ''
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        with:
+          path: build/DerivedData
+          key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
+          lookup-only: true
+          fail-on-cache-miss: true
 
       - name: Upload test log on failure
         if: failure()
