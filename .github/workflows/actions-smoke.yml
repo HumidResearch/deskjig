@@ -27,7 +27,7 @@ jobs:
     # (guarding on the fork bit, not a repo name a rename would silently break).
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-2x
     timeout-minutes: 10
     steps:
       - name: Create first payload
@@ -74,7 +74,7 @@ jobs:
   cache-save:
     name: cache save
     if: ${{ !github.event.repository.fork }}
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-2x
     timeout-minutes: 10
     steps:
       - name: Create cacheable content
@@ -92,7 +92,7 @@ jobs:
     name: cache restore (same run)
     if: ${{ !github.event.repository.fork }}
     needs: cache-save
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-2x
     timeout-minutes: 10
     steps:
       - name: Restore cache

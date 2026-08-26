@@ -36,7 +36,7 @@ jobs:
     # (guarding on the fork bit, not a repo name a rename would silently break).
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
-    runs-on: macos-latest
+    runs-on: warp-macos-26-arm64-6x
     timeout-minutes: 30
     defaults:
       run:
