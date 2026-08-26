@@ -31,7 +31,6 @@ OPTIONS:
                              instead of inside DerivedData (CI caches the two
                              independently, so a project-file edit does not
                              force a cold re-resolve of every package)
-      --universal            Build a universal arm64 + x86_64 binary
       --no-signing           Disable code signing (sets CODE_SIGNING_ALLOWED=NO)
       --log-file <path>      Write full build output to this file
   -h, --help                 Show this help message
@@ -52,9 +51,8 @@ EXAMPLES:
 
 NOTES:
   - Full output is teed to the log file; on failure, tail that file for details.
-  - Local builds default to the host architecture only, which is what you want
-    for the edit/build/run loop. Shipping builds pass --universal so the DMG
-    runs on Intel Macs too (the release runner is Apple silicon).
+  - Every build targets the host architecture (Apple silicon). Intel support
+    was dropped deliberately as of v1.1.4 — DeskJig ships arm64-only DMGs.
 `);
 }
 
@@ -86,7 +84,6 @@ let configuration: BuildConfiguration = "Debug";
 let derivedDataPath: string | undefined;
 let clonedSourcePackagesPath: string | undefined;
 let disableSigning = false;
-let universal = false;
 let logFilePath: string | undefined;
 const settingOverrides: string[] = [];
 
@@ -142,11 +139,6 @@ for (let i = 0; i < argv.length; i++) {
     }
     clonedSourcePackagesPath = nextArg;
     i++;
-    continue;
-  }
-
-  if (arg === "--universal") {
-    universal = true;
     continue;
   }
 
@@ -207,9 +199,7 @@ const resolvedLogFilePath = logFilePath ?? defaultLogFile;
 mkdirSync(dirname(resolvedLogFilePath), { recursive: true });
 const logStream = createWriteStream(resolvedLogFilePath, { flags: "w" });
 
-// A universal build must not pin the destination to the host architecture —
-// xcodebuild derives ARCHS from it and would quietly drop the other slice.
-const destination = universal ? "platform=macOS" : destinationForHostArch();
+const destination = destinationForHostArch();
 
 const args: string[] = [
   "-workspace",
@@ -233,9 +223,6 @@ if (destination) {
 args.push("build");
 
 const buildSettings: string[] = [];
-if (universal) {
-  buildSettings.push("ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO");
-}
 if (disableSigning) {
   buildSettings.push("CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO");
 }

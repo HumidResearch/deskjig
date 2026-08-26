@@ -164,7 +164,7 @@ Two rules the workflow enforces for you:
 
 The release workflow is four jobs — `gate` (cheap Linux validation: tag/semver,
 Version.xcconfig match, Sparkle key, build-number precheck) → `build`
-(universal build + deep re-sign) → `notarize` (both notarization rounds, DMG,
+(arm64 release build + deep re-sign) → `notarize` (both notarization rounds, DMG,
 Gatekeeper) → `publish` (Sparkle signature, appcast, GitHub Release). Products
 cross job boundaries as artifacts, so **a flake reruns only the failed job**:
 `gh run rerun <run-id> --failed` after a notarization flake redoes ~2 minutes
