@@ -68,7 +68,7 @@ private struct CollapsedInlineCreatorRow: View {
                     .foregroundStyle(DesignTokens.Text.muted)
             }
             .padding(DesignTokens.Card.padding)
-            .dsCard(style: .workspace, isHighlighted: isHovering || isSelected)
+            .dsCard(style: .workspace, isHighlighted: isHovering, isSelected: isSelected)
             .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Card.cornerRadius))
         }
         .buttonStyle(.plain)

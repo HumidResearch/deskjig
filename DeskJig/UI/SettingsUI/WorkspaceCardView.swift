@@ -29,6 +29,10 @@ struct WorkspaceCardView: View {
     var onEditLayout: ((Workspace) -> Void)? = nil
     var onDuplicateLayout: ((Workspace) -> Void)? = nil
     var onEditingFinished: (() -> Void)? = nil
+    /// Mouse restore path (#51): Open button + card double-click.
+    var onOpenWorkspace: ((Workspace) -> Void)? = nil
+    /// Single click on the card body selects it (keyboard and mouse share selection).
+    var onCardSelected: (() -> Void)? = nil
 
     @Environment(WorkspaceViewModel.self) private var vm
     @Environment(AppDelegate.self) private var appDelegate
@@ -154,7 +158,9 @@ struct WorkspaceCardView: View {
             },
             onWindowTapped: { window in
                 handleWindowTap(window)
-            }
+            },
+            onOpenTapped: onOpenWorkspace == nil ? nil : { onOpenWorkspace?(workspace.workspace) },
+            onCardClicked: onCardSelected
         )
         .onAppear {
             handleAutoEdit(autoEditWorkspaceId)

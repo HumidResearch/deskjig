@@ -72,6 +72,10 @@ struct DSWorkspaceListItem: View {
     var onRecordShortcut: (() -> Void)?
     var onClearShortcut: (() -> Void)?
     var onWindowTapped: ((DSPreviewWindow) -> Void)?
+    /// Opens the workspace: Open button and card double-click (#51).
+    var onOpenTapped: (() -> Void)? = nil
+    /// Single click on the card body — selects the card without opening it.
+    var onCardClicked: (() -> Void)? = nil
 
     @State private var isHovering = false
     @State private var isPickingIcon = false
@@ -147,10 +151,27 @@ struct DSWorkspaceListItem: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DesignTokens.Card.padding)
-        .dsCard(style: .workspace, isHighlighted: isHovering || isSelected)
+        .dsCard(style: .workspace, isHighlighted: isHovering, isSelected: isSelected)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Card.cornerRadius))
+        .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Card.cornerRadius))
+        // Double-click opens; buttons inside the card still win over this
+        // gesture, while the simultaneous single-click keeps selection in
+        // sync with whatever the mouse touches (#51).
+        .gesture(
+            TapGesture(count: 2).onEnded {
+                guard !isEditing else { return }
+                onOpenTapped?()
+            }
+        )
+        .simultaneousGesture(
+            TapGesture(count: 1).onEnded {
+                guard !isEditing else { return }
+                onCardClicked?()
+            }
+        )
         .onHover { isHovering = $0 }
         .animation(.smooth(duration: 0.15), value: isHovering)
+        .animation(.smooth(duration: 0.15), value: isSelected)
     }
 
     /// Find a window by ID across all screens
@@ -236,6 +257,21 @@ struct DSWorkspaceListItem: View {
                 }
                 Spacer()
                 HStack(spacing: DesignTokens.Spacing.gapTiny) {
+                    if onOpenTapped != nil {
+                        Button { onOpenTapped?() } label: {
+                            HStack(spacing: DesignTokens.Spacing.gapTiny) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: DesignTokens.IconSize.small))
+                                Text("Open")
+                                    .font(brand: .body4)
+                            }
+                        }
+                        .buttonStyle(.dsButton(variant: .primary, size: .small))
+                        .brightenOnHover()
+                        .accessibilityIdentifier("workspace.card.open-button")
+                        .accessibilityValue(name)
+                    }
+
                     // Edit button - matches 28px height of favorite button
                     Button { onEditTapped?() } label: {
                         HStack(spacing: DesignTokens.Spacing.gapTiny) {
