@@ -122,7 +122,7 @@ Heads up: the codebase is mid-conversion from its commercial past. You will run 
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Small PRs, issues first for anything non-trivial. For bug reports, include your macOS version, the app version, and for restore issues the run ID (`restore_HHMMSS_xxxxxx`) from the logs.
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the [issue tracker](https://github.com/HumidResearch/deskjig/issues). Small PRs, issues first for anything non-trivial. For bug reports, include your macOS version, the app version, and for restore issues the run ID (`restore_HHMMSS_xxxxxx`) from the logs.
 
 Security reports go through [SECURITY.md](SECURITY.md), not public issues.
 
