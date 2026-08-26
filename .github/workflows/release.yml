@@ -886,6 +886,33 @@ jobs:
             echo "::warning::$FEED is not publicly reachable (expected while the repository is private)."
           fi
 
+      - name: Notify bentodesktop.com of the new release
+        # Real publishes only — a dry-run must never move the public site.
+        # Advisory: the site's badge and download CTA live-fetch
+        # releases/latest anyway; this dispatch only bumps the pinned no-JS
+        # fallback (mscontrol-ai/web's Update Download Links workflow), so a
+        # missing token or failed call should not fail a published release.
+        if: env.DRY_RUN == 'false'
+        continue-on-error: true
+        env:
+          WEB_DISPATCH_TOKEN: ${{ secrets.WEB_DISPATCH_TOKEN }}
+          TAG: ${{ needs.gate.outputs.tag }}
+          VERSION: ${{ needs.gate.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$WEB_DISPATCH_TOKEN" ]]; then
+            echo "::warning::WEB_DISPATCH_TOKEN is not set — skipping the website notification. Add a fine-grained PAT with contents:write on mscontrol-ai/web to enable it."
+            exit 0
+          fi
+          GH_TOKEN="$WEB_DISPATCH_TOKEN" gh api repos/mscontrol-ai/web/dispatches \
+            --method POST \
+            --field event_type="release_published" \
+            --field client_payload[tag_name]="$TAG" \
+            --field client_payload[version]="$VERSION" \
+            --field client_payload[dmg_name]="DeskJig-${VERSION}.dmg" \
+            --field client_payload[github_url]="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/DeskJig-${VERSION}.dmg"
+          echo "Notified mscontrol-ai/web to bump its pinned fallback to ${TAG}."
+
       - name: Clean up Sparkle key
         if: always()
         run: rm -f "$RUNNER_TEMP/sparkle-ed-key" || true
