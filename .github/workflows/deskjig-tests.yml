@@ -179,12 +179,69 @@ jobs:
             echo "::warning::DerivedData cache miss on main — expected a warm entry (cold once after a key bump is normal)"
           fi
 
+      # [PROBE — temporary, do not merge] Restored-state snapshot before the
+      # build: is build.db present, what metadata did the tarball restore, and
+      # what mtimes did git-restore-mtime leave on sources. Compared across two
+      # runs of this PR to find what actually differs run-to-run.
+      - name: "[probe] restored state before build"
+        continue-on-error: true
+        run: |
+          XCB=build/DerivedData/Build/Intermediates.noindex/XCBuildData
+          ls -lt "$XCB" 2>/dev/null | head -15 || echo "no XCBuildData restored"
+          /usr/bin/stat -f "db: mtime=%Fm inode=%i size=%z" "$XCB/build.db" 2>/dev/null || echo "no build.db restored"
+          find build/DerivedData/Build/Intermediates.noindex -name "*.o" 2>/dev/null | sort | head -3 | while read -r f; do
+            /usr/bin/stat -f "o: mtime=%Fm inode=%i %N" "$f"
+          done
+          for f in DeskJig/Info.plist scripts/test-deskjig.ts DeskJig.xcodeproj/project.pbxproj; do
+            /usr/bin/stat -f "src: mtime=%Fm %N" "$f" || true
+          done
+          echo "XCBuild defaults:"; defaults read com.apple.dt.XCBuild 2>/dev/null || echo "  (none)"
+
       - name: Run headless DeskJigTests plan
         # --no-signing: PR runners have no signing identity; the test host runs
         # with the linker's ad-hoc signature, which is fine for unit tests.
         run: |
           bun scripts/test-deskjig.ts --plan headless --no-signing \
             --cloned-source-packages build/SourcePackages
+
+      # [PROBE — temporary, do not merge] Second build in the same job: if this
+      # is a null build, incrementality works machine-locally on CI and the
+      # invalidation happens between runs (restore/checkout metadata or task
+      # identity drift). If it recompiles too, something per-invocation on this
+      # runner breaks reuse.
+      - name: "[probe] second build in same job"
+        if: always()
+        continue-on-error: true
+        run: |
+          xcodebuild build-for-testing -workspace DeskJig.xcworkspace -scheme DeskJig \
+            -configuration Debug -derivedDataPath build/DerivedData \
+            -destination platform=macOS,arch=arm64 -testPlan DeskJigTests-Headless \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO > /tmp/second-build.log 2>&1 || true
+          echo "signature: $(grep -E 'Build description signature' /tmp/second-build.log || echo none)"
+          echo "SwiftCompile tasks: $(grep -c 'SwiftCompile normal' /tmp/second-build.log || true)"
+          tail -3 /tmp/second-build.log
+
+      # [PROBE — temporary, do not merge] The restored cache tarball contains
+      # the PREVIOUS run's .xcbuilddata; diff its manifest against the one this
+      # run generated to see exactly which task definitions drifted across runs.
+      - name: "[probe] diff previous vs current build manifest"
+        if: always()
+        continue-on-error: true
+        run: |
+          cd build/DerivedData/Build/Intermediates.noindex/XCBuildData
+          dirs=$(ls -dt -- *.xcbuilddata 2>/dev/null || true)
+          new=$(echo "$dirs" | head -1); old=$(echo "$dirs" | tail -1)
+          echo "descriptions present: $(echo "$dirs" | wc -l | tr -d ' ') (new=$new old=$old)"
+          if [[ -n "$new" && "$new" != "$old" && -f "$new/manifest.json" && -f "$old/manifest.json" ]]; then
+            python3 -m json.tool "$new/manifest.json" > /tmp/new-manifest.json
+            python3 -m json.tool "$old/manifest.json" > /tmp/old-manifest.json
+            diff /tmp/old-manifest.json /tmp/new-manifest.json > /tmp/manifest.diff || true
+            echo "manifest diff lines: $(wc -l < /tmp/manifest.diff | tr -d ' ')"
+            head -150 /tmp/manifest.diff
+          else
+            echo "only one usable description; nothing to diff"
+          fi
 
       # Cache entries are immutable per key: saving an EMPTY directory
       # permanently poisons that key — every later run restores nothing, skips
