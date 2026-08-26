@@ -25,6 +25,7 @@ on:
           - build/DerivedData
           - build/DerivedData/CompilationCache.noindex
           - build/SourcePackages
+          - DeskJigShared/.build
 
 permissions:
   contents: read
