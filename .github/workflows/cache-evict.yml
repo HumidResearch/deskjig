@@ -23,6 +23,7 @@ on:
         type: choice
         options:
           - build/DerivedData
+          - build/DerivedData/CompilationCache.noindex
           - build/SourcePackages
 
 permissions:

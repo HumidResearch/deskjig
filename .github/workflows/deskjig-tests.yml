@@ -63,26 +63,10 @@ jobs:
           VERSION=$(echo "$XCODE_OUTPUT" | head -n1 | awk '{print $2}')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
+      # Shallow checkout: the mtime/inode incremental-build machinery is gone
+      # (see the compilation-cache comment below), so full history no longer
+      # pays for anything.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          # git-restore-mtime needs full history to compute per-file last-touch
-          # commits. Cheap on this repo; drop together with the step below if it
-          # ever stops paying for itself.
-          fetch-depth: 0
-
-      # Git does not preserve mtimes: a fresh checkout stamps every file with
-      # "now", so Xcode's timestamp-based incremental build treats the whole
-      # tree as dirty and a restored DerivedData cache buys nothing. Rewriting
-      # mtimes from commit history makes incremental builds actually fire.
-      - name: Restore file modification times
-        # Pinned by commit SHA (v2.3): third-party action, mutable tags are a
-        # supply-chain hole.
-        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2.3
-
-      # Companion to the mtime restore: without it Xcode invalidates on the new
-      # inode numbers the cache extraction produced, mtimes notwithstanding.
-      - name: Keep Xcode incremental builds valid across cache restores
-        run: defaults write com.apple.dt.XCBuild IgnoreFileSystemDeviceInodeChanges -bool YES
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -106,30 +90,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-
 
-      # The key pins the toolchain, the resolved package versions and both
-      # project graphs — the app project and the CLI project it embeds —
-      # because a change to any invalidates the built products. The `-v3`
-      # purpose marks the cache generation; bump it to force a fresh one (v3
-      # evicted the #63 poisoned entry; v4 verified the full save/verify path).
-      # Verified 2026-08-26: warm 319 MB restores cut the test step 75-83 s -> 54-71 s.
-      - name: Restore Xcode test build cache
-        id: cache_derived_data
+      # Xcode 26 compilation cache (CAS), replacing the old DerivedData cache
+      # (`-xcode-test-v4-…` family, retired 2026-08-26). DerivedData caching
+      # never produced incremental builds here: the Metal toolchain cryptex
+      # mounts at a random per-VM path that Xcode bakes into every Swift task
+      # signature, so each fresh runner invalidated all ~1,370 compile tasks
+      # (diagnosed via manifest diffs in #74). The CAS is content-addressed —
+      # compile results are keyed by their actual inputs — so VM identity,
+      # mtimes, inodes and that random path stop mattering, and DerivedData is
+      # simply rebuilt fresh each run with compiles short-circuiting to cache
+      # hits (measured locally: 14 s vs 32 s full build, 100% hit rate
+      # including SwiftPM dep targets).
+      #
+      # The primary key embeds run_id so every run misses it and saves its own
+      # snapshot (newly compiled objects accrete); restores take the newest
+      # same-Xcode entry via the prefix restore-key. Entries are ~immutable
+      # snapshots; stale ones age out with Warp's eviction. Keyed on the Xcode
+      # version because CAS contents are toolchain-specific.
+      - name: Restore Xcode compilation cache
+        id: cache_cas
         uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
-          path: build/DerivedData
-          key: ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ runner.os }}-xcode-cas-v1-${{ steps.xcode_version.outputs.version }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
-            ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-xcode-cas-v1-${{ steps.xcode_version.outputs.version }}-
 
       - name: Cache summary
         env:
           SPM_HIT: ${{ steps.cache_spm.outputs.cache-hit }}
-          DD_HIT: ${{ steps.cache_derived_data.outputs.cache-hit }}
+          CAS_MK: ${{ steps.cache_cas.outputs.cache-matched-key }}
         run: |
-          # cache-hit is only true on an exact primary-key match; a restore-key
-          # match restores content but reports false. Distinguish the two by
-          # whether the directory materialized.
+          # SPM: cache-hit is only true on an exact primary-key match; a
+          # restore-key match restores content but reports false. CAS: the
+          # primary key embeds run_id so it never exact-hits — the matched-key
+          # output says whether a snapshot was restored.
           state() {
             local hit="$1" dir="$2"
             if [[ "$hit" == "true" ]]; then echo "hit"
@@ -140,13 +135,13 @@ jobs:
           # (du || true) so a missing directory on a cold cache doesn't trip
           # the runner shell's pipefail and kill the step.
           SPM_SIZE=$( (du -sh build/SourcePackages 2>/dev/null || true) | cut -f1 )
-          DD_SIZE=$( (du -sh build/DerivedData 2>/dev/null || true) | cut -f1 )
+          CAS_SIZE=$( (du -sh build/DerivedData/CompilationCache.noindex 2>/dev/null || true) | cut -f1 )
           {
             echo "### Cache"
             echo "| cache | state | size |"
             echo "| --- | --- | --- |"
             echo "| SwiftPM checkouts | $(state "$SPM_HIT" build/SourcePackages) | ${SPM_SIZE:-0} |"
-            echo "| DerivedData | $(state "$DD_HIT" build/DerivedData) | ${DD_SIZE:-0} |"
+            echo "| Compilation cache | $([[ -n "$CAS_MK" ]] && echo "restored ($CAS_MK)" || echo miss) | ${CAS_SIZE:-0} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # WarpBuilds/cache exits green in every failure mode, so the two states
@@ -159,11 +154,11 @@ jobs:
       - name: Cache health guard
         env:
           SPM_PK: ${{ steps.cache_spm.outputs.cache-primary-key }}
-          DD_PK: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
-          DD_MK: ${{ steps.cache_derived_data.outputs.cache-matched-key }}
+          CAS_PK: ${{ steps.cache_cas.outputs.cache-primary-key }}
+          CAS_MK: ${{ steps.cache_cas.outputs.cache-matched-key }}
           SPM_MK: ${{ steps.cache_spm.outputs.cache-matched-key }}
         run: |
-          if [[ -z "$SPM_PK" || -z "$DD_PK" ]]; then
+          if [[ -z "$SPM_PK" || -z "$CAS_PK" ]]; then
             echo "::warning::WarpBuild cache token missing or service unavailable — restores/saves are silently disabled this run (cold build, results still valid)"
           fi
           check_poisoned() { # name dir matched_key floor_kib
@@ -175,28 +170,40 @@ jobs:
               return 1
             fi
           }
-          check_poisoned "DerivedData" build/DerivedData "$DD_MK" 102400
+          # A populated CAS is ~700 MB raw. Per-run keys mean a bad snapshot
+          # only hurts until the next save, but a near-empty restore still
+          # signals a broken save path worth failing loudly on.
+          check_poisoned "Compilation cache" build/DerivedData/CompilationCache.noindex "$CAS_MK" 102400
           # A healthy SourcePackages (7 package checkouts + bare repos +
           # Sparkle's binary artifact) is ~850 MB raw. The original 5 MB floor
           # let a 26 MB partial entry (2 of 7 bare repos, no checkouts) pass
           # for a day while every run silently re-fetched 5 packages (~22 s).
           check_poisoned "SwiftPM checkouts" build/SourcePackages "$SPM_MK" 409600
-          if [[ -n "$DD_PK" && -z "$DD_MK" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "::warning::DerivedData cache miss on main — expected a warm entry (cold once after a key bump is normal)"
+          if [[ -n "$CAS_PK" && -z "$CAS_MK" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "::warning::Compilation cache miss on main — expected a warm snapshot (cold once after a key bump is normal)"
           fi
 
       - name: Run headless DeskJigTests plan
         # --no-signing: PR runners have no signing identity; the test host runs
         # with the linker's ad-hoc signature, which is fine for unit tests.
+        # Compilation cache: content-addressed compile caching (CAS lands in
+        # <derivedDataPath>/CompilationCache.noindex, the directory cached
+        # above). LIMIT_SIZE caps on-disk CAS growth; DIAGNOSTIC_REMARKS prints
+        # a per-task "cache hit/miss" note into the log so hit rates stay
+        # auditable (grep "cache hit").
         run: |
           bun scripts/test-deskjig.ts --plan headless --no-signing \
-            --cloned-source-packages build/SourcePackages
+            --cloned-source-packages build/SourcePackages \
+            --build-setting COMPILATION_CACHE_ENABLE_CACHING=YES \
+            --build-setting COMPILATION_CACHE_LIMIT_SIZE=2G \
+            --build-setting COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES
 
-      # Cache entries are immutable per key: saving an EMPTY directory
-      # permanently poisons that key — every later run restores nothing, skips
-      # its save on the "hit", and quietly pays full cold builds until the key
-      # changes (this happened; the `-v3` purpose bump above evicted it). Only
-      # save directories that actually have content.
+      # Cache entries are immutable per key: saving an EMPTY or partial
+      # directory permanently poisons that key — every later run restores it,
+      # skips its save on the "hit", and quietly pays the cost until the entry
+      # is evicted (this happened twice: an empty DerivedData in #63, and a
+      # 26 MB partial SourcePackages fixed in #75). Only save directories that
+      # pass the content bar.
       - name: Check caches have content worth saving
         id: cache_content
         if: always()
@@ -216,9 +223,12 @@ jobs:
               echo false
             fi
           }
+          # CAS: partial content is harmless (content-addressed, accretive,
+          # and per-run keys mean no entry is ever "hit" and frozen) — the
+          # check only prevents saving an empty directory.
           {
             echo "spm=$(spm_complete)"
-            echo "derived_data=$(nonempty build/DerivedData)"
+            echo "cas=$(nonempty build/DerivedData/CompilationCache.noindex)"
           } >> "$GITHUB_OUTPUT"
 
       # Saved even when the test step failed (see the restore comment). Skipped
@@ -230,12 +240,15 @@ jobs:
           path: build/SourcePackages
           key: ${{ steps.cache_spm.outputs.cache-primary-key }}
 
-      - name: Save Xcode test build cache
-        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true' && steps.cache_content.outputs.derived_data == 'true'
+      # The run_id primary key never pre-exists, so this saves a fresh CAS
+      # snapshot (restored base + this run's newly compiled objects) on every
+      # run, keeping the newest prefix match warm for the next run.
+      - name: Save Xcode compilation cache
+        if: always() && steps.cache_content.outputs.cas == 'true'
         uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
-          path: build/DerivedData
-          key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ steps.cache_cas.outputs.cache-primary-key }}
 
       # The save action swallows every upload failure (by construction — no
       # input changes that), so verify the entries actually exist. lookup-only
@@ -249,12 +262,12 @@ jobs:
           lookup-only: true
           fail-on-cache-miss: true
 
-      - name: Verify saved DerivedData entry exists
-        if: always() && steps.cache_derived_data.outputs.cache-hit != 'true' && steps.cache_content.outputs.derived_data == 'true' && steps.cache_derived_data.outputs.cache-primary-key != ''
+      - name: Verify saved compilation cache entry exists
+        if: always() && steps.cache_content.outputs.cas == 'true' && steps.cache_cas.outputs.cache-primary-key != ''
         uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
-          path: build/DerivedData
-          key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ steps.cache_cas.outputs.cache-primary-key }}
           lookup-only: true
           fail-on-cache-miss: true
 
@@ -265,3 +278,4 @@ jobs:
           name: deskjig-tests-headless-log
           path: build/deskjig-tests.headless.log
           if-no-files-found: ignore
+
