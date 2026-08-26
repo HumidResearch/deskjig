@@ -212,6 +212,11 @@ struct QuickSwitchSettingsView: View {
                         }
                 }
             }
+
+            Divider()
+                .background(DesignTokens.Border.subtle)
+
+            TmuxQuickSwitchSettingsSection()
         }
         .padding(DesignTokens.Spacing.cardPaddingSmall)
         .background {

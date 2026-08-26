@@ -73,9 +73,12 @@ public enum BundleIdentity {
 
     // MARK: - tmux
 
-    /// Prefix of the tmux server socket: `/tmp/bento-tmux-<uid>.sock`.
-    /// Renaming this orphans users' running tmux sessions on first launch.
-    public static let tmuxSocketPrefix = "bento-tmux"
+    /// Prefix of the tmux server socket: `/tmp/deskjig-tmux-<uid>.sock`.
+    /// Renamed from the legacy `bento-tmux` by maintainer decision (2026-08-25):
+    /// sessions on the old socket become unmanaged after upgrade and are
+    /// recreated on the next workspace restore — the same outcome as the
+    /// Reset Sessions button, accepted as a one-time break.
+    public static let tmuxSocketPrefix = "deskjig-tmux"
 
     /// Absolute tmux socket path for the current user.
     public static var tmuxSocketPath: String {

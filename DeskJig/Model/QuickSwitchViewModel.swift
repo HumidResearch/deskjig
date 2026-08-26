@@ -92,7 +92,11 @@ final class QuickSwitchViewModel {
     private static let legacyPreferencesRelativePath =
         "Library/Containers/com.mscontrol.bento/Data/Library/Preferences/com.mscontrol.bento.plist"
 
-    static let defaultWorktreeStoragePath = "~/.bento/worktrees"
+    // Renamed from the legacy "~/.bento/worktrees" default (2026-08-25). Only
+    // affects installs that never customized the path: new worktrees land in
+    // the DeskJig location, while worktrees already created under the old
+    // path stay valid on disk and keep appearing via root-folder scanning.
+    static let defaultWorktreeStoragePath = "~/.deskjig/worktrees"
 
     // MARK: - Persisted State
 
@@ -127,7 +131,7 @@ final class QuickSwitchViewModel {
         }
     }
 
-    /// Worktree storage base path (default: ~/.bento/worktrees)
+    /// Worktree storage base path (default: ~/.deskjig/worktrees)
     var worktreeStoragePath: String = defaultWorktreeStoragePath {
         didSet {
             guard !isHydratingFromDefaults, oldValue != worktreeStoragePath else { return }
