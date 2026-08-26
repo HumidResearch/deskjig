@@ -280,16 +280,20 @@ jobs:
 
       # Same SPM cache family as the PR lanes, which keep it warm. Checkouts
       # are inputs (verified against Package.resolved), not compiled output, so
-      # restoring them cannot make the release build stale.
-      - name: Cache SwiftPM checkouts
+      # restoring them cannot make the release build stale. RESTORE-ONLY on
+      # purpose: the combined action's post-job save cannot be gated on
+      # content, so a failed or cancelled release job could permanently poison
+      # the shared immutable entry with a partial tree (this bit us — a 26 MB
+      # 2-of-7-packages entry cost every tests run ~22 s of re-fetching). The
+      # tests lane owns the saves, with content guards.
+      - name: Restore SwiftPM checkouts cache
         id: cache_spm
-        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-
-            ${{ runner.os }}-spm-
 
       - name: Cache summary
         env:
