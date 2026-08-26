@@ -36,9 +36,9 @@ struct WorkspacesListView: View {
     @Binding var editorPathFieldFocused: Bool
     @Binding var isEditingWorkspace: Bool
     var isListFocused: FocusState<Bool>.Binding
-    /// Selected index for keyboard navigation, passed from parent.
-    /// nil = search box focused, 0 = inline creator, 1+ = workspace cards
-    @Binding var selectedIndex: Int?
+    /// Keyboard selection (by row identity), passed from parent.
+    /// nil = search box focused (no row selected).
+    @Binding var selectedItem: WorkspaceListItemID?
     /// Signals from parent to expand the inline creator (e.g., Return from search)
     @Binding var expandInlineCreator: Bool
     /// Reflects whether the inline creator is expanded (for top-level key handling)
@@ -65,12 +65,6 @@ struct WorkspacesListView: View {
         }
     }
 
-    /// Total number of selectable items (inline creator + workspace cards)
-    private var totalSelectableItems: Int {
-        let creatorCount = showInlineCreator ? 1 : 0
-        return creatorCount + filteredWorkspaces.count
-    }
-
     /// Title text based on filter mode
     private var titleText: String {
         filterMode == .favorites ? "Favorite Workspaces" : "Workspaces"
@@ -95,17 +89,12 @@ struct WorkspacesListView: View {
         .focusable()
         .focused(isListFocused)
         .focusEffectDisabled()
-        // Arrow key navigation is handled by parent (DeskJigContentView) via search bar
-        // to support key repeat without focus changes
-        .onKeyPress(.return) {
-            guard activeEditor == nil else { return .ignored }
-            handleReturn()
-            return .handled
-        }
+        // Arrow key and Return handling live in the parent (DeskJigContentView)
+        // so there is exactly one selection/open code path (#51)
         // Escape key to clear selection and focus search
         .onKeyPress(.escape) {
             guard activeEditor == nil else { return .ignored }
-            selectedIndex = nil
+            selectedItem = nil
             isListFocused.wrappedValue = false
             isSearchFocused.wrappedValue = true
             return .handled
@@ -113,13 +102,13 @@ struct WorkspacesListView: View {
         // Sync selection state when search focus changes
         .onChange(of: isSearchFocused.wrappedValue) { _, isFocused in
             if isFocused, activeEditor == nil {
-                selectedIndex = nil
+                selectedItem = nil
             }
         }
         // Reset selection when search text changes
         .onChange(of: searchText) { _, _ in
             guard activeEditor == nil else { return }
-            selectedIndex = nil
+            selectedItem = nil
             if !showInlineCreator {
                 isInlineCreatorExpanded = false
             }
@@ -144,7 +133,7 @@ struct WorkspacesListView: View {
             isEditingWorkspace = newValue != nil
             guard newValue != nil else { return }
             isSearchFocused.wrappedValue = false
-            selectedIndex = nil
+            selectedItem = nil
             isInlineCreatorExpanded = false
             inlineCreatorIsOpen = false
             editorPathFieldFocused = false
@@ -175,13 +164,13 @@ struct WorkspacesListView: View {
                 WorkspaceInlineCreatorRow(
                     isExpanded: $isInlineCreatorExpanded,
                     editorPathFieldFocused: $editorPathFieldFocused,
-                    isSelected: selectedIndex == 0,
+                    isSelected: selectedItem == .creator,
                     viewModel: draftViewModel,
                     onExpand: { expandInlineCreatorRow() },
                     onCreate: { handleInlineCreate() },
                     onCancel: { cancelInlineCreate() }
                 )
-                .id("workspace-item-0")
+                .id(WorkspaceListItemID.creator.scrollAnchorID)
                 .transition(.animatedBlur)
             }
 
@@ -191,11 +180,11 @@ struct WorkspacesListView: View {
             if !isInlineCreatorExpanded {
                 // Workspace cards
                 ForEach(Array(filteredWorkspaces.enumerated()), id: \.element.workspace.id) { index, workspace in
-                    let itemIndex = showInlineCreator ? index + 1 : index
+                    let itemID = WorkspaceListItemID.workspace(workspace.workspace.id)
                     WorkspaceCardView(
                         workspace: workspace,
                         index: index,
-                        isSelected: selectedIndex == itemIndex,
+                        isSelected: selectedItem == itemID,
                         editorPathFieldFocused: $editorPathFieldFocused,
                         isEditingWorkspace: $isEditingWorkspace,
                         editPresentation: .delegated,
@@ -207,9 +196,15 @@ struct WorkspacesListView: View {
                         },
                         onDuplicateLayout: { selectedWorkspace in
                             handleDuplicateLayout(workspace: selectedWorkspace)
+                        },
+                        onOpenWorkspace: { selectedWorkspace in
+                            handleOpenWorkspace(selectedWorkspace)
+                        },
+                        onCardSelected: {
+                            selectedItem = itemID
                         }
                     )
-                    .id("workspace-item-\(itemIndex)")
+                    .id(itemID.scrollAnchorID)
                     .transition(.animatedBlur)
                 }
 
@@ -352,33 +347,16 @@ struct WorkspacesListView: View {
         .padding(.vertical, 40)
     }
 
-    // MARK: - Keyboard Navigation
+    // MARK: - Opening
 
-    private func handleReturn() {
-        guard let idx = selectedIndex else { return }
-
-        if showInlineCreator {
-            // Inline creator is at index 0, workspaces are at 1+
-            if idx == 0 {
-                expandInlineCreatorRow()
-            } else {
-                let workspaceIndex = idx - 1
-                if workspaceIndex < filteredWorkspaces.count {
-                    let workspace = filteredWorkspaces[workspaceIndex]
-                    vm.openWorkspace(
-                        named: workspace.workspace.name,
-                        source: WorkspaceViewModel.settingsEnterLaunchSource
-                    )
-                }
-            }
-        } else if idx < filteredWorkspaces.count {
-            // No inline creator (favorites mode or searching), workspaces are at 0+
-            let workspace = filteredWorkspaces[idx]
-            vm.openWorkspace(
-                named: workspace.workspace.name,
-                source: WorkspaceViewModel.settingsEnterLaunchSource
-            )
-        }
+    /// Mouse path to restore: the card's Open button and double-click land
+    /// here (#51). Opens by workspace identity, mirroring the keyboard path.
+    private func handleOpenWorkspace(_ workspace: Workspace) {
+        vm.openWorkspace(
+            workspace,
+            source: WorkspaceViewModel.settingsEnterLaunchSource,
+            launchDisplayName: workspace.name
+        )
     }
 
     // MARK: - Inline Creator
@@ -415,7 +393,7 @@ struct WorkspacesListView: View {
         draftViewModel?.reset()
         isInlineCreatorExpanded = false
         inlineCreatorIsOpen = false
-        selectedIndex = nil
+        selectedItem = nil
     }
 
     private func handleInlineCreate() {
@@ -427,7 +405,7 @@ struct WorkspacesListView: View {
                 draftViewModel.reset()
                 isInlineCreatorExpanded = false
                 inlineCreatorIsOpen = false
-                selectedIndex = nil
+                selectedItem = nil
             }
         }
     }

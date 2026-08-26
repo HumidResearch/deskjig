@@ -73,52 +73,36 @@ struct DSCard<Content: View>: View {
 
 /// Convenience modifier for applying card styling
 extension View {
+    /// `isSelected` is keyboard/click selection — deliberately louder than the
+    /// `isHighlighted` hover state so the selected row is unmistakable (#51).
     @ViewBuilder
     func dsCard(
         style: DSCardStyle = .default,
         isHighlighted: Bool = false,
+        isSelected: Bool = false,
         cornerRadius: CGFloat = DesignTokens.Card.cornerRadius
     ) -> some View {
+        let fillColor: Color = {
+            if isSelected { return DesignTokens.LayoutPreview.tileSelectedFill }
+            return isHighlighted ? DesignTokens.Surface.cardHover : DesignTokens.Surface.card
+        }()
         let borderColor: Color = {
+            if isSelected { return DesignTokens.Brand.accent }
             switch style {
-            case .default:
+            case .default, .workspace:
                 return isHighlighted ? DesignTokens.Border.regular : DesignTokens.Border.subtle
             case .config:
                 return DesignTokens.Border.subtle
-            case .workspace:
-                return isHighlighted ? DesignTokens.Border.regular : DesignTokens.Border.subtle
             }
         }()
 
-        switch style {
-        case .default:
-            self.background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHighlighted ? DesignTokens.Surface.cardHover : DesignTokens.Surface.card)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(borderColor, lineWidth: 1)
-            }
-        case .config:
-            // Config cards use the same solid surface for consistency
-            self.background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHighlighted ? DesignTokens.Surface.cardHover : DesignTokens.Surface.card)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(borderColor, lineWidth: 1)
-            }
-        case .workspace:
-            self.background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHighlighted ? DesignTokens.Surface.cardHover : DesignTokens.Surface.card)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(borderColor, lineWidth: 1)
-            }
+        self.background {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(fillColor)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
         }
     }
 }

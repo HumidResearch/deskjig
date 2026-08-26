@@ -24,6 +24,7 @@
         "FluentLauncherTimeoutTests",
         "InlineScreenSelectionStateTests",
         "LoggingConfigurationVerboseSinkTests",
+        "WorkspaceListNavigatorTests",
         "QuickSwitchViewModelTests/clampCompensationBoundedFallback()",
         "QuickSwitchViewModelTests/clampCompensationLeftNeighbor()",
         "QuickSwitchViewModelTests/clampCompensationRightNeighbor()",

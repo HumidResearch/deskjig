@@ -262,7 +262,7 @@ private extension DeskJigApp {
             .canJoinAllSpaces,        // Appears on all desktops
             .fullScreenAuxiliary      // Can appear over full-screen apps
         ]
-        panel.contentView = NSHostingView(
+        panel.contentView = FirstMouseHostingView(
             rootView: MainWindowContent(
                 appDelegate: appDelegate,
                 appUpdateController: appUpdateController,
@@ -276,6 +276,13 @@ private extension DeskJigApp {
         self.mainWindow = panel
         return panel
     }
+}
+
+/// The first click into a background main window must both activate the app
+/// AND reach the control under the cursor — otherwise it is silently swallowed
+/// by activation (#51).
+private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 private extension DeskJigApp {

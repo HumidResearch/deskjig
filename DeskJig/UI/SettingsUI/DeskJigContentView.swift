@@ -24,9 +24,9 @@ struct DeskJigContentView: View {
     @State private var searchText: String = ""
     @FocusState private var isSearchFocused: Bool
     @FocusState private var isListFocused: Bool
-    /// Selected index for keyboard navigation in workspace list.
-    /// nil = search box focused, 0 = inline creator, 1+ = workspace cards
-    @State private var selectedIndex: Int? = nil
+    /// Keyboard selection in the workspace list, tracked by row identity.
+    /// nil = search box focused (no row selected).
+    @State private var selectedItem: WorkspaceListItemID? = nil
     /// Signal to expand the inline creator row (set from Return key)
     @State private var expandInlineCreator: Bool = false
     /// Whether inline creator is expanded (used to avoid search hijack)
@@ -88,10 +88,13 @@ struct DeskJigContentView: View {
         }
     }
 
-    /// Total number of selectable items (inline creator + workspace cards)
-    private var totalSelectableItems: Int {
-        let creatorCount = showInlineCreatorRow ? 1 : 0
-        return creatorCount + filteredWorkspaces.count
+    /// Visible rows in display order — the single source of truth keyboard
+    /// navigation moves through.
+    private var visibleListItems: [WorkspaceListItemID] {
+        WorkspaceListNavigator.items(
+            showCreator: showInlineCreatorRow,
+            workspaceIds: filteredWorkspaces.map { $0.workspace.id }
+        )
     }
 
     // MARK: - Navigation Functions
@@ -102,28 +105,14 @@ struct DeskJigContentView: View {
         // The expanded creator owns the content area (#597); the card list is
         // hidden, so there is nothing below the creator to navigate to.
         guard !inlineCreatorIsOpen else { return }
-        if selectedIndex == nil {
-            // From search box, go to first item
-            if totalSelectableItems > 0 {
-                selectedIndex = 0
-            }
-        } else if let idx = selectedIndex, idx < totalSelectableItems - 1 {
-            selectedIndex = idx + 1
-        }
+        selectedItem = WorkspaceListNavigator.next(after: selectedItem, in: visibleListItems)
     }
 
     /// Navigate up in the workspace list (supports key repeat)
     private func navigateUp() {
         guard effectiveSelectedSection.isWorkspaceSection else { return }
         guard !inlineCreatorIsOpen else { return }
-        if let idx = selectedIndex {
-            if idx == 0 {
-                // From first item, go back to search box (clear selection)
-                selectedIndex = nil
-            } else {
-                selectedIndex = idx - 1
-            }
-        }
+        selectedItem = WorkspaceListNavigator.previous(before: selectedItem, in: visibleListItems)
     }
 
     /// Handle Return key press - open selected workspace or expand inline creator
@@ -132,30 +121,26 @@ struct DeskJigContentView: View {
         // While the creator is expanded the card list is hidden (#597); don't
         // open a workspace the user can't see.
         guard !inlineCreatorIsOpen else { return }
-        guard let idx = selectedIndex else { return }
 
-        if showInlineCreatorRow {
-            // Inline creator is at index 0, workspaces are at 1+
-            if idx == 0 {
-                expandInlineCreator = true
-            } else {
-                let workspaceIndex = idx - 1
-                if workspaceIndex < filteredWorkspaces.count {
-                    let workspace = filteredWorkspaces[workspaceIndex]
-                    workspaceVM.openWorkspace(
-                        named: workspace.workspace.name,
-                        source: WorkspaceViewModel.settingsEnterLaunchSource
-                    )
-                }
-            }
-        } else if idx < filteredWorkspaces.count {
-            // No inline creator (favorites mode or searching), workspaces are at 0+
-            let workspace = filteredWorkspaces[idx]
-            workspaceVM.openWorkspace(
-                named: workspace.workspace.name,
-                source: WorkspaceViewModel.settingsEnterLaunchSource
-            )
+        switch selectedItem {
+        case .creator:
+            expandInlineCreator = true
+        case .workspace(let id):
+            guard let item = filteredWorkspaces.first(where: { $0.workspace.id == id }) else { return }
+            openWorkspaceFromList(item.workspace)
+        case nil:
+            break
         }
+    }
+
+    /// Opens by workspace identity — never by name or position — so Return
+    /// always launches exactly the highlighted row (#51).
+    private func openWorkspaceFromList(_ workspace: Workspace) {
+        workspaceVM.openWorkspace(
+            workspace,
+            source: WorkspaceViewModel.settingsEnterLaunchSource,
+            launchDisplayName: workspace.name
+        )
     }
 
     private func routeToWorkspaceSearchIfNeeded(for query: String) {
@@ -259,10 +244,10 @@ struct DeskJigContentView: View {
                                     }
                                     .scrollBounceBehavior(.basedOnSize)
                                     // Scroll to selected item when selection changes
-                                    .onChange(of: selectedIndex) { _, newIndex in
-                                        guard let index = newIndex else { return }
+                                    .onChange(of: selectedItem) { _, newItem in
+                                        guard let item = newItem else { return }
                                         withAnimation(.smooth(duration: 0.2)) {
-                                            scrollProxy.scrollTo("workspace-item-\(index)", anchor: .center)
+                                            scrollProxy.scrollTo(item.scrollAnchorID, anchor: .center)
                                         }
                                     }
                                     // Ensure editor header is visible when entering edit mode.
@@ -318,7 +303,7 @@ struct DeskJigContentView: View {
         .onChange(of: selectedSectionRaw) { _, _ in
             if isOnboardingGateActive {
                 enforceOnboardingGateIfNeeded()
-                selectedIndex = nil
+                selectedItem = nil
                 return
             }
             let newSection = effectiveSelectedSection
@@ -328,13 +313,13 @@ struct DeskJigContentView: View {
             // Focus search when switching to workspace section
             if newSection.isWorkspaceSection {
                 isSearchFocused = true
-                selectedIndex = nil
+                selectedItem = nil
             } else if newSection == .quickSwitch {
                 // Quick Switch owns its own in-section search field.
                 isSearchFocused = false
-                selectedIndex = nil
+                selectedItem = nil
             } else {
-                selectedIndex = nil
+                selectedItem = nil
             }
         }
         .onChange(of: searchText) { _, newValue in
@@ -368,6 +353,16 @@ struct DeskJigContentView: View {
             // Let search bar handle it when focused
             guard !isSearchFocused else { return .ignored }
             navigateUp()
+            return .handled
+        }
+        // Return opens the selected row — one handler for search-focused
+        // (via WorkspaceSearchBar.onReturn) and list-focused states (#51)
+        .onKeyPress(.return) {
+            guard effectiveSelectedSection.isWorkspaceSection else { return .ignored }
+            guard !isSearchFocused else { return .ignored }
+            guard !inlineCreatorIsOpen, !isEditingWorkspace else { return .ignored }
+            guard selectedItem != nil else { return .ignored }
+            handleReturn()
             return .handled
         }
         // Auto-focus search when typing characters (all sections except settings)
@@ -427,7 +422,7 @@ struct DeskJigContentView: View {
                 editorPathFieldFocused: $editorPathFieldFocused,
                 isEditingWorkspace: $isEditingWorkspace,
                 isListFocused: $isListFocused,
-                selectedIndex: $selectedIndex,
+                selectedItem: $selectedItem,
                 expandInlineCreator: $expandInlineCreator,
                 inlineCreatorIsOpen: $inlineCreatorIsOpen,
                 autoEditWorkspaceId: $autoEditWorkspaceId,
@@ -442,7 +437,7 @@ struct DeskJigContentView: View {
                 editorPathFieldFocused: $editorPathFieldFocused,
                 isEditingWorkspace: $isEditingWorkspace,
                 isListFocused: $isListFocused,
-                selectedIndex: $selectedIndex,
+                selectedItem: $selectedItem,
                 expandInlineCreator: $expandInlineCreator,
                 inlineCreatorIsOpen: $inlineCreatorIsOpen,
                 autoEditWorkspaceId: $autoEditWorkspaceId,
