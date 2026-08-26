@@ -1,10 +1,15 @@
 name: SwiftLint
 
+# Runs on a free Linux runner: SwiftLint's lint mode needs no macOS SDK, and
+# the official release ships a static Linux binary. Pinned by version AND
+# sha256 (brew previously floated the version — this is stricter, not looser).
 on:
   pull_request:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Reused as a release gate (release.yml calls this before building).
+  workflow_call:
 
 concurrency:
   group: swiftlint-${{ github.ref }}
@@ -15,6 +20,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SWIFTLINT_VERSION: "0.65.1"
+  SWIFTLINT_SHA256: "caeed6f4a679c35539ffaf124f6c4ab4a8416917f7d8796279dc52b74026059d"
+
 jobs:
   swiftlint:
     name: SwiftLint (report-only)
@@ -22,14 +31,21 @@ jobs:
     # (guarding on the fork bit, not a repo name a rename would silently break).
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
-    runs-on: warp-macos-26-arm64-6x
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - name: Install SwiftLint
-        run: brew install swiftlint
+      - name: Install SwiftLint (pinned Linux binary)
+        run: |
+          set -euo pipefail
+          curl -sSL -o swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/swiftlint_linux_amd64.zip"
+          echo "${SWIFTLINT_SHA256}  swiftlint.zip" | sha256sum -c -
+          unzip -q swiftlint.zip -d swiftlint-bin
+          chmod +x swiftlint-bin/swiftlint
+          ./swiftlint-bin/swiftlint version
 
       - name: Run SwiftLint
         # Report-only: every rule in .swiftlint.yml is warning severity (see
@@ -38,4 +54,4 @@ jobs:
         # future config change accidentally introducing an `error` severity,
         # or against the lint runner itself crashing.
         continue-on-error: true
-        run: swiftlint lint --quiet --reporter github-actions-logging
+        run: ./swiftlint-bin/swiftlint lint --quiet --reporter github-actions-logging

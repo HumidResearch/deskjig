@@ -19,6 +19,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Reused as a release gate (release.yml calls this before building).
+  workflow_call:
 
 concurrency:
   group: deskjig-package-${{ github.ref }}
@@ -37,7 +39,8 @@ jobs:
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
     runs-on: warp-macos-26-arm64-6x
-    timeout-minutes: 30
+    # Warm runs finish in ~1 min; the timeout bounds paid minutes on a hang.
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
