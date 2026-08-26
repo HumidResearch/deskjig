@@ -14,7 +14,7 @@ struct HelpFeedbackSection: View {
 
     /// Issue tracker the "Send Feedback" action hands off to. DeskJig has no
     /// feedback backend — the app only opens this page in the user's browser.
-    private static let issueTrackerURL = URL(string: "https://github.com/HumidResearch/deskjig/issues")!
+    private static let issueTrackerURL = ProjectLinks.issueTrackerURL
 
     @State private var feedbackText: String = ""
     @State private var feedbackSubmitMessage: String? = nil
@@ -63,6 +63,25 @@ struct HelpFeedbackSection: View {
                     }
                 }
             }
+
+            section("Open Source") {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("DeskJig is free and open source under Apache-2.0 — contributions welcome.")
+                        .font(brand: .body4)
+                        .foregroundStyle(DesignTokens.Text.secondary)
+
+                    Button {
+                        openRepository()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.up.forward.square")
+                            Text("View on GitHub")
+                        }
+                    }
+                    .buttonStyle(.dsButton(variant: .secondary, size: .medium))
+                    .help("Open the DeskJig repository in your browser")
+                }
+            }
         }
     }
 
@@ -107,6 +126,16 @@ struct HelpFeedbackSection: View {
             // Clear message after 5 seconds
             await Task.sleepUnlessCancelled(for: .seconds(5))
             feedbackSubmitMessage = nil
+        }
+    }
+
+    /// Opens the GitHub repository in the default browser.
+    private func openRepository() {
+        let opened = NSWorkspace.shared.open(ProjectLinks.repositoryURL)
+        if opened {
+            DeskJigLog.info(.app, "Help: opened GitHub repository in browser")
+        } else {
+            DeskJigLog.error(.app, "Help: failed to open GitHub repository in browser")
         }
     }
 
