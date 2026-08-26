@@ -107,18 +107,18 @@ jobs:
       # The key pins the toolchain, the resolved package versions and both
       # project graphs — the app project and the CLI project it embeds —
       # because a change to any invalidates the built products. The `-v3`
-      # purpose evicted a poisoned empty entry (#63); bump it again to force
-      # a fresh cache generation. Verified 2026-08-26: warm restores (~319 MB
-      # in 4-10 s) cut the test step from 75-83 s cold to 54-71 s.
+      # purpose marks the cache generation; bump it to force a fresh one (v3
+      # evicted the #63 poisoned entry; v4 verified the full save/verify path).
+      # Verified 2026-08-26: warm 319 MB restores cut the test step 75-83 s -> 54-71 s.
       - name: Restore Xcode test build cache
         id: cache_derived_data
         uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/DerivedData
-          key: ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
+          key: ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
           restore-keys: |
-            ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
-            ${{ runner.os }}-xcode-test-v3-${{ steps.xcode_version.outputs.version }}-
+            ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            ${{ runner.os }}-xcode-test-v4-${{ steps.xcode_version.outputs.version }}-
 
       - name: Cache summary
         env:
