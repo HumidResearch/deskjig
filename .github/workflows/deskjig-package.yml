@@ -49,21 +49,96 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Swift version
-        run: swift --version
+        id: swift_version
+        run: |
+          swift --version
+          # Keying the cache on the toolchain keeps a Swift bump from restoring
+          # a .build SwiftPM would discard anyway. Fallback keeps the key legal
+          # if the output format ever changes.
+          VERSION=$(swift --version 2>&1 | grep -oE 'Swift version [0-9.]+' | head -n1 | awk '{print $3}')
+          echo "version=${VERSION:-unknown}" >> $GITHUB_OUTPUT
 
-      # Keyed on the package manifest and its resolved pins: a dependency bump
-      # invalidates the cache, an ordinary source change reuses it.
-      - name: Cache SwiftPM build directory
-        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+      # Keyed on the toolchain, the package manifest and its resolved pins: a
+      # dependency or Swift bump invalidates the cache, an ordinary source
+      # change reuses it. The `-pkg-` prefix keeps this family out of the app
+      # lanes' `-spm-` namespace (the old shared prefix made bare fallbacks
+      # dangerous). restore/save are split (instead of the combined action)
+      # for the same reason as the tests lane, plus one this lane learned the
+      # hard way: the combined action's post-job save cannot be gated on
+      # content, so a run that dies mid-resolve would permanently poison the
+      # immutable entry with a partial tree — the exact failure mode that hit
+      # the app lane's SwiftPM cache (#75).
+      - name: Restore SwiftPM build cache
+        id: cache_build
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: DeskJigShared/.build
-          key: ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-${{ hashFiles('DeskJigShared/Package.swift') }}
+          key: ${{ runner.os }}-pkg-v1-${{ steps.swift_version.outputs.version }}-${{ hashFiles('DeskJigShared/Package.resolved') }}-${{ hashFiles('DeskJigShared/Package.swift') }}
           restore-keys: |
-            ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-
-            ${{ runner.os }}-spm-
+            ${{ runner.os }}-pkg-v1-${{ steps.swift_version.outputs.version }}-${{ hashFiles('DeskJigShared/Package.resolved') }}-
+            ${{ runner.os }}-pkg-v1-${{ steps.swift_version.outputs.version }}-
+
+      # Same loud-failure posture as the tests lane (#68): the cache action
+      # exits green in every failure mode, so a restored entry that is
+      # near-empty must fail hard — it means a poisoned save got past the
+      # gates and needs evicting via cache-evict.yml.
+      - name: Cache health guard
+        env:
+          PK: ${{ steps.cache_build.outputs.cache-primary-key }}
+          MK: ${{ steps.cache_build.outputs.cache-matched-key }}
+        run: |
+          if [[ -z "$PK" ]]; then
+            echo "::warning::WarpBuild cache token missing or service unavailable — restores/saves are silently disabled this run (cold build, results still valid)"
+          fi
+          if [[ -n "$MK" ]]; then
+            KIB=$( (du -sk DeskJigShared/.build 2>/dev/null || echo 0) | cut -f1 )
+            if (( KIB < 102400 )); then
+              echo "::error::.build restore matched '$MK' but only ${KIB} KiB materialized — poisoned entry; evict it via cache-evict.yml"
+              exit 1
+            fi
+          fi
+          SIZE=$( (du -sh DeskJigShared/.build 2>/dev/null || true) | cut -f1 )
+          echo "SwiftPM build cache: $([[ -n "$MK" ]] && echo "restored ($MK)" || echo miss) (${SIZE:-0})" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Build package
         run: swift build --package-path DeskJigShared
 
       - name: Test package
         run: swift test --package-path DeskJigShared
+
+      # A save-worthy .build has dependency checkouts AND compiled products —
+      # a resolve-only partial (~30-50 MB) restores as a warm-looking cache
+      # that still recompiles everything. Healthy entry is ~192 MB compressed.
+      - name: Check cache has content worth saving
+        id: cache_content
+        if: always()
+        run: |
+          ok=false
+          KIB=$( (du -sk DeskJigShared/.build 2>/dev/null || echo 0) | cut -f1 )
+          if [[ -d DeskJigShared/.build/checkouts && -n "$(ls -A DeskJigShared/.build/checkouts 2>/dev/null)" ]] \
+             && [[ -d DeskJigShared/.build/debug && -n "$(ls -A DeskJigShared/.build/debug 2>/dev/null)" ]] \
+             && (( KIB >= 102400 )); then
+            ok=true
+          fi
+          echo "build=$ok" >> "$GITHUB_OUTPUT"
+
+      # Saved even when the test step failed — a failed run that compiled most
+      # of a cold build still leaves the rerun warm. Skipped on an exact
+      # primary-key hit: the entry already exists and is immutable.
+      - name: Save SwiftPM build cache
+        if: always() && steps.cache_build.outputs.cache-hit != 'true' && steps.cache_content.outputs.build == 'true'
+        uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        with:
+          path: DeskJigShared/.build
+          key: ${{ steps.cache_build.outputs.cache-primary-key }}
+
+      # The save action swallows upload failures; lookup-only verification
+      # turns a vanished save red instead of silently cold-building forever.
+      - name: Verify saved cache entry exists
+        if: always() && steps.cache_build.outputs.cache-hit != 'true' && steps.cache_content.outputs.build == 'true' && steps.cache_build.outputs.cache-primary-key != ''
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
+        with:
+          path: DeskJigShared/.build
+          key: ${{ steps.cache_build.outputs.cache-primary-key }}
+          lookup-only: true
+          fail-on-cache-miss: true

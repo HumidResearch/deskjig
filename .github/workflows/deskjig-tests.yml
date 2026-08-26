@@ -45,9 +45,10 @@ jobs:
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
     runs-on: warp-macos-26-arm64-12x
-    # Warm runs finish in ~1.5 min and a fully cold build in ~7; the timeout is
-    # a paid-minutes bound on a hung runner, not headroom that gets used.
-    timeout-minutes: 20
+    # Warm runs finish in ~1 min and a fully cold one (no caches at all) in
+    # ~2.5; the timeout is a paid-minutes bound on a hung runner, not headroom
+    # that gets used.
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
@@ -71,13 +72,14 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      # Two caches, deliberately split. SwiftPM checkouts are pinned out of
-      # DerivedData (--cloned-source-packages below) so an edit to either
-      # project file rebuilds objects without also throwing away all seven
-      # package checkouts — those only churn when Package.resolved does.
-      # restore/save are split (instead of plain actions/cache) so the save
-      # runs even when the test step fails: a failed run that compiled 90% of
-      # a cold cache still leaves the rerun warm — the whole point of caching.
+      # Two caches, deliberately split: SwiftPM checkouts (pinned out of
+      # DerivedData via --cloned-source-packages below; they only churn when
+      # Package.resolved does) and the compilation cache further down.
+      # DerivedData itself is rebuilt fresh every run — compiles short-circuit
+      # through the CAS instead. restore/save are split (instead of plain
+      # actions/cache) so the save runs even when the test step fails: a
+      # failed run that compiled 90% of a cold cache still leaves the rerun
+      # warm — the whole point of caching.
       - name: Restore SwiftPM checkouts cache
         id: cache_spm
         uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
@@ -278,4 +280,3 @@ jobs:
           name: deskjig-tests-headless-log
           path: build/deskjig-tests.headless.log
           if-no-files-found: ignore
-
