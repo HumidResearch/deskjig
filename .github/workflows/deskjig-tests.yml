@@ -278,3 +278,4 @@ jobs:
           name: deskjig-tests-headless-log
           path: build/deskjig-tests.headless.log
           if-no-files-found: ignore
+
