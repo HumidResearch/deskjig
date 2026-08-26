@@ -83,7 +83,7 @@ jobs:
           echo "cached-${{ github.run_id }}" > cachedir/marker.txt
 
       - name: Save cache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: cachedir
           key: actions-smoke-${{ github.run_id }}-${{ github.run_attempt }}
@@ -97,7 +97,7 @@ jobs:
     steps:
       - name: Restore cache
         id: restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: cachedir
           key: actions-smoke-${{ github.run_id }}-${{ github.run_attempt }}

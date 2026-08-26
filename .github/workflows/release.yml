@@ -283,7 +283,7 @@ jobs:
       # restoring them cannot make the release build stale.
       - name: Cache SwiftPM checkouts
         id: cache_spm
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
