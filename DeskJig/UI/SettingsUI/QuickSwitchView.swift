@@ -50,7 +50,15 @@ struct QuickSwitchView: View {
             header
                 .padding(.bottom, DesignTokens.Spacing.gapMedium)
 
-            if savedWorkspaces.isEmpty {
+            // Settings (gear-toggled) replace the pane content while open, in
+            // every state — so root folders and tmux are configurable even
+            // before any root folder or workspace exists — and scroll, since
+            // the card is taller than the window.
+            if showSettings {
+                ScrollView(.vertical, showsIndicators: false) {
+                    QuickSwitchSettingsView(viewModel: viewModel)
+                }
+            } else if savedWorkspaces.isEmpty {
                 emptyWorkspacesState
             } else if viewModel.rootFolders.isEmpty {
                 emptyRootFoldersState
@@ -62,12 +70,6 @@ struct QuickSwitchView: View {
                 // Search bar
                 searchBar
                     .padding(.bottom, DesignTokens.Spacing.gapRegular)
-
-                // Settings section (inline, toggled)
-                if showSettings {
-                    QuickSwitchSettingsView(viewModel: viewModel)
-                        .padding(.bottom, DesignTokens.Spacing.gapMedium)
-                }
 
                 // Directory list
                 if filteredDirectories.isEmpty {
