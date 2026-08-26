@@ -13,6 +13,11 @@ public struct GenericWindowRestorationConfig: Sendable {
     public let minimumSizeRatio: CGFloat
     public let verificationDelay: Duration
     public let verificationTolerance: CGFloat
+    /// Extra settle time after a cold-launched app reports `isFinishedLaunching` before the first
+    /// AX positioning attempt. Positioning a window while the app is still in its launch-time
+    /// layout pass can raise an uncaught layout exception inside the target app and crash it
+    /// (observed with Apple Notes, deskjig#52).
+    public let launchSettleDelay: Duration
 
     public init(
         useWindowLocks: Bool,
@@ -21,7 +26,8 @@ public struct GenericWindowRestorationConfig: Sendable {
         launchPollInterval: Duration = .milliseconds(500),
         minimumSizeRatio: CGFloat = 0.6,
         verificationDelay: Duration = .milliseconds(50),
-        verificationTolerance: CGFloat = 5.0
+        verificationTolerance: CGFloat = 5.0,
+        launchSettleDelay: Duration = .milliseconds(500)
     ) {
         self.useWindowLocks = useWindowLocks
         self.lockTimeout = lockTimeout
@@ -30,6 +36,7 @@ public struct GenericWindowRestorationConfig: Sendable {
         self.minimumSizeRatio = minimumSizeRatio
         self.verificationDelay = verificationDelay
         self.verificationTolerance = verificationTolerance
+        self.launchSettleDelay = launchSettleDelay
     }
 
     /// Creates a config for slow-start apps (Zoom, Discord, Slack).
@@ -162,7 +169,8 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
             window: window,
             targetFrame: targetFrame,
             taskContext: taskContext,
-            config: config
+            config: config,
+            settleAfterLaunch: true
         )
 
         DeskJigLog.debug(.restorationTrace, "Window restoration complete", fields: ["taskId": taskContext.taskId, "taskType": taskContext.taskType.rawValue,
@@ -196,12 +204,31 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
         window: WorkspaceWindow,
         targetFrame: CGRect,
         taskContext: RestorationTaskContext,
-        config: GenericWindowRestorationConfig
+        config: GenericWindowRestorationConfig,
+        settleAfterLaunch: Bool = false
     ) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: config.launchWindowTimeout)
         var attempt = 0
         var reopenAttempted = false
+
+        // For apps this restore just cold-launched, hold off the first AX positioning until the
+        // app reports isFinishedLaunching plus a short settle: an AX setFrame that lands during
+        // the launch-time layout pass can raise an uncaught layout exception in the target app
+        // and crash it (Apple Notes, deskjig#52). Bounded by the same overall deadline.
+        if settleAfterLaunch {
+            while clock.now < deadline {
+                let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
+                if app?.isFinishedLaunching == true { break }
+                guard await Task.sleepUnlessCancelled(for: config.launchPollInterval) else { return false }
+            }
+            DeskJigLog.debug(.restorationTrace, "Launch settle before first positioning", fields: [
+                "taskId": taskContext.taskId,
+                "bundleId": bundleId,
+                "settleMs": "\(durationMillis(config.launchSettleDelay))"
+            ], runId: taskContext.runId)
+            guard await Task.sleepUnlessCancelled(for: config.launchSettleDelay) else { return false }
+        }
 
         // Track consecutive handle failures for the same window to avoid infinite retry loops
         // when a window's AX APIs are unresponsive (e.g., Zoom login dialogs)

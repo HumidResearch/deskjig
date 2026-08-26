@@ -917,7 +917,14 @@ final class WorkspaceDraftViewModel {
     // MARK: - App Assignments
 
     func assignApp(bundleId: String, to zoneId: UUID, screenIndex: Int) {
-        guard let appInfo = findAppInfo(bundleOrPath: bundleId) else { return }
+        guard let appInfo = findAppInfo(bundleOrPath: bundleId) else {
+            DeskJigLog.warn(.workspace, "assignApp could not resolve app — assignment dropped", fields: [
+                "bundleOrPath": bundleId,
+                "zoneId": zoneId.uuidString,
+                "screenIndex": "\(screenIndex)"
+            ])
+            return
+        }
 
         let windowId: UUID
         if supportsMultipleInstances(bundleId) {
