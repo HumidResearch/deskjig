@@ -235,7 +235,7 @@ jobs:
     name: Build and sign DeskJig.app
     needs: gate
     if: ${{ !github.event.repository.fork }}
-    runs-on: macos-latest
+    runs-on: warp-macos-26-arm64-12x
     timeout-minutes: 60
     defaults:
       run:
@@ -482,7 +482,7 @@ jobs:
     name: Notarize app, package and notarize DMG
     needs: [gate, build]
     if: ${{ !github.event.repository.fork }}
-    runs-on: macos-latest
+    runs-on: warp-macos-26-arm64-6x
     # Two notarytool submissions at --timeout 45m each, plus packaging,
     # stapling and Gatekeeper overhead — real headroom over the 45+45 cap.
     timeout-minutes: 120
@@ -650,7 +650,7 @@ jobs:
     name: Sparkle feed and GitHub Release
     needs: [gate, notarize]
     if: ${{ !github.event.repository.fork }}
-    runs-on: macos-latest
+    runs-on: warp-macos-26-arm64-6x
     timeout-minutes: 20
     permissions:
       contents: write
