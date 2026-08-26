@@ -100,9 +100,11 @@ jobs:
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          # No bare `-spm-` fallback: it could match entries from other cache
+          # families in this key namespace; a same-Xcode prefix match is the
+          # only restore that is guaranteed to be this workspace's checkouts.
           restore-keys: |
             ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-
-            ${{ runner.os }}-spm-
 
       # The key pins the toolchain, the resolved package versions and both
       # project graphs — the app project and the CLI project it embeds —
@@ -174,7 +176,11 @@ jobs:
             fi
           }
           check_poisoned "DerivedData" build/DerivedData "$DD_MK" 102400
-          check_poisoned "SwiftPM checkouts" build/SourcePackages "$SPM_MK" 5120
+          # A healthy SourcePackages (7 package checkouts + bare repos +
+          # Sparkle's binary artifact) is ~850 MB raw. The original 5 MB floor
+          # let a 26 MB partial entry (2 of 7 bare repos, no checkouts) pass
+          # for a day while every run silently re-fetched 5 packages (~22 s).
+          check_poisoned "SwiftPM checkouts" build/SourcePackages "$SPM_MK" 409600
           if [[ -n "$DD_PK" && -z "$DD_MK" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "::warning::DerivedData cache miss on main — expected a warm entry (cold once after a key bump is normal)"
           fi
@@ -196,8 +202,22 @@ jobs:
         if: always()
         run: |
           nonempty() { [[ -d "$1" && -n "$(ls -A "$1" 2>/dev/null)" ]] && echo true || echo false; }
+          # SwiftPM needs more than non-empty: a run that dies mid-resolve
+          # leaves a small partial tree (bare repos but no checkouts), and
+          # saving it poisons the immutable entry — every later run "hits" it,
+          # re-fetches the missing packages from the network, and skips its own
+          # save because the hit already exists. Mirror the restore-side floor.
+          spm_complete() {
+            local kib
+            kib=$( (du -sk build/SourcePackages 2>/dev/null || echo 0) | cut -f1 )
+            if [[ -d build/SourcePackages/checkouts && -n "$(ls -A build/SourcePackages/checkouts 2>/dev/null)" ]] && (( kib >= 409600 )); then
+              echo true
+            else
+              echo false
+            fi
+          }
           {
-            echo "spm=$(nonempty build/SourcePackages)"
+            echo "spm=$(spm_complete)"
             echo "derived_data=$(nonempty build/DerivedData)"
           } >> "$GITHUB_OUTPUT"
 
