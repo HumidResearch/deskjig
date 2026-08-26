@@ -25,6 +25,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Reused as a release gate (release.yml calls this before building).
+  workflow_call:
 
 concurrency:
   group: deskjig-tests-${{ github.ref }}
@@ -43,7 +45,9 @@ jobs:
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
     runs-on: warp-macos-26-arm64-12x
-    timeout-minutes: 45
+    # Warm runs finish in ~1.5 min and a fully cold build in ~7; the timeout is
+    # a paid-minutes bound on a hung runner, not headroom that gets used.
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash
@@ -92,7 +96,7 @@ jobs:
       # a cold cache still leaves the rerun warm — the whole point of caching.
       - name: Restore SwiftPM checkouts cache
         id: cache_spm
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
@@ -106,7 +110,7 @@ jobs:
       # purpose marks the post-split layout (SourcePackages no longer inside).
       - name: Restore Xcode test build cache
         id: cache_derived_data
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/restore@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/DerivedData
           key: ${{ runner.os }}-xcode-test-v2-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ hashFiles('DeskJig.xcodeproj/project.pbxproj', 'DeskJigCLI/DeskJigCLI.xcodeproj/project.pbxproj') }}
@@ -152,14 +156,14 @@ jobs:
       # on an exact primary-key hit — the entry already exists and is immutable.
       - name: Save SwiftPM checkouts cache
         if: always() && steps.cache_spm.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ steps.cache_spm.outputs.cache-primary-key }}
 
       - name: Save Xcode test build cache
         if: always() && steps.cache_derived_data.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache/save@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/DerivedData
           key: ${{ steps.cache_derived_data.outputs.cache-primary-key }}

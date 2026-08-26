@@ -227,13 +227,34 @@ jobs:
             ${PREVIOUS_ARGS[@]+"${PREVIOUS_ARGS[@]}"}
 
   # ---------------------------------------------------------------------------
+  # Quality gates: the same test and lint lanes PRs run, invoked here as
+  # reusable workflows so a release can never build from a commit whose tests
+  # were not green ON THIS REF. Tag pushes do not trigger the PR workflows, so
+  # without these calls a hotfix tagged without a PR would ship untested.
+  # ---------------------------------------------------------------------------
+  tests:
+    name: Tests
+    needs: gate
+    uses: ./.github/workflows/deskjig-tests.yml
+
+  package:
+    name: Package
+    needs: gate
+    uses: ./.github/workflows/deskjig-package.yml
+
+  lint:
+    name: Lint
+    needs: gate
+    uses: ./.github/workflows/swiftlint.yml
+
+  # ---------------------------------------------------------------------------
   # Universal build + Developer ID signing. Produces the ditto'd app zip and
   # Sparkle's sign_update tool as artifacts. Compiles cold on purpose — see the
   # seam rules in the header.
   # ---------------------------------------------------------------------------
   build:
     name: Build and sign DeskJig.app
-    needs: gate
+    needs: [gate, tests, package, lint]
     if: ${{ !github.event.repository.fork }}
     runs-on: warp-macos-26-arm64-12x
     timeout-minutes: 60
@@ -262,7 +283,7 @@ jobs:
       # restoring them cannot make the release build stale.
       - name: Cache SwiftPM checkouts
         id: cache_spm
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: build/SourcePackages
           key: ${{ runner.os }}-spm-${{ steps.xcode_version.outputs.version }}-${{ hashFiles('DeskJig.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}

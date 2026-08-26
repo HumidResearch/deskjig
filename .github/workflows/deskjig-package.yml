@@ -19,6 +19,8 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
+  # Reused as a release gate (release.yml calls this before building).
+  workflow_call:
 
 concurrency:
   group: deskjig-package-${{ github.ref }}
@@ -37,7 +39,8 @@ jobs:
     # PRs from forks INTO this repo still run (the event's repository is the base).
     if: ${{ !github.event.repository.fork }}
     runs-on: warp-macos-26-arm64-6x
-    timeout-minutes: 30
+    # Warm runs finish in ~1 min; the timeout bounds paid minutes on a hang.
+    timeout-minutes: 15
     defaults:
       run:
         shell: bash
@@ -51,7 +54,7 @@ jobs:
       # Keyed on the package manifest and its resolved pins: a dependency bump
       # invalidates the cache, an ordinary source change reuses it.
       - name: Cache SwiftPM build directory
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: WarpBuilds/cache@dad44e2487e9dc889ad6e6bd198e77bb2d828eee # v2.0.0
         with:
           path: DeskJigShared/.build
           key: ${{ runner.os }}-spm-${{ hashFiles('DeskJigShared/Package.resolved') }}-${{ hashFiles('DeskJigShared/Package.swift') }}
