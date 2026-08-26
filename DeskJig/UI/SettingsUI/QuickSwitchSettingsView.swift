@@ -183,7 +183,7 @@ struct QuickSwitchSettingsView: View {
                         }
                         .buttonStyle(.plain)
                         .brightenOnHover(0.1)
-                        .help("Reset to default")
+                        .help("Reset worktree storage to the default folder")
                     }
                 }
 
