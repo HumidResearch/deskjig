@@ -268,6 +268,7 @@ struct DSWorkspaceListItem: View {
                         }
                         .buttonStyle(.dsButton(variant: .primary, size: .small))
                         .brightenOnHover()
+                        .help("Open this workspace (double-click the card or press Return also works)")
                         .accessibilityIdentifier("workspace.card.open-button")
                         .accessibilityValue(name)
                     }
