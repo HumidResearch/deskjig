@@ -27,7 +27,8 @@ public class ApplicationManager: ObservableObject, ApplicationManagerProtocol {
         "/Applications",
         "/System/Applications",
         "/System/Applications/Utilities",
-        "/Applications/Utilities"
+        "/Applications/Utilities",
+        ("~/Applications" as NSString).expandingTildeInPath
     ]
 
     public init() {
@@ -192,9 +193,7 @@ public class ApplicationManager: ObservableObject, ApplicationManagerProtocol {
             )
 
             // Add to our applications list for future reference
-            DispatchQueue.main.async { [weak self] in
-                self?.applications.append(appInfo)
-            }
+            appendIfMissing(appInfo)
 
             return appInfo
         }
@@ -220,9 +219,7 @@ public class ApplicationManager: ObservableObject, ApplicationManagerProtocol {
             )
 
             // Add to our applications list for future reference
-            DispatchQueue.main.async { [weak self] in
-                self?.applications.append(appInfo)
-            }
+            appendIfMissing(appInfo)
 
             return appInfo
         }
@@ -230,6 +227,24 @@ public class ApplicationManager: ObservableObject, ApplicationManagerProtocol {
         return nil
     }
     
+    /// Append a runtime-resolved app unless an entry with the same bundle id (or path) already
+    /// exists. The presence check must run inside the same main-queue hop as the append: callers
+    /// check `applications` on their own thread before dispatching here, so concurrent lookups for
+    /// the same app would otherwise each queue their own append and produce duplicate entries.
+    private func appendIfMissing(_ appInfo: AppInfo) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let alreadyPresent = self.applications.contains { existing in
+                if let bundleId = appInfo.bundleIdentifier {
+                    return existing.bundleIdentifier == bundleId
+                }
+                return existing.path == appInfo.path
+            }
+            guard !alreadyPresent else { return }
+            self.applications.append(appInfo)
+        }
+    }
+
     /// Check if an application is currently running
     public func isApplicationRunning(bundleIdentifier: String) -> Bool {
         let runningApps = NSWorkspace.shared.runningApplications

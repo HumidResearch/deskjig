@@ -74,9 +74,6 @@ struct WorkspaceLayoutBuilder: View {
                 editorPathFieldFocused = false
             }
         }
-        .onChange(of: searchQuery) { _, _ in
-            selectedFilter = .all
-        }
     }
 
     // MARK: - Header
@@ -155,9 +152,18 @@ struct WorkspaceLayoutBuilder: View {
                     query: $searchQuery,
                     results: filteredApps,
                     onSelectApp: { app in
-                        guard let selectedZoneId = viewModel.selectedZoneId,
-                              let screenIndex = viewModel.screenIndex(containing: selectedZoneId) else { return }
-                        viewModel.assignApp(bundleId: app.bundleId, to: selectedZoneId, screenIndex: screenIndex)
+                        if let selectedZoneId = viewModel.selectedZoneId,
+                           let screenIndex = viewModel.screenIndex(containing: selectedZoneId) {
+                            viewModel.assignApp(bundleId: app.bundleId, to: selectedZoneId, screenIndex: screenIndex)
+                            return
+                        }
+                        // No zone selected yet: fall back to the first zone of the current
+                        // monitor so a click on an app chip always lands somewhere visible
+                        // instead of silently doing nothing.
+                        let screenIndex = safeSelectedScreenIndex
+                        guard let firstZone = viewModel.zones(for: screenIndex).first else { return }
+                        selectZone(firstZone.id, in: screenIndex)
+                        viewModel.assignApp(bundleId: app.bundleId, to: firstZone.id, screenIndex: screenIndex)
                     }
                 )
             }
@@ -1199,7 +1205,14 @@ struct WorkspaceLayoutBuilder: View {
             return selectedFilter.matches(bundleId: bundleId)
         }
 
-        return categoryFiltered
+        // Dedupe by bundle id (falling back to path): the result id below is the bundle id, and
+        // duplicate Identifiable ids inside a ForEach are undefined behavior in SwiftUI.
+        var seenIds = Set<String>()
+        let deduped = categoryFiltered.filter { app in
+            seenIds.insert(app.bundleIdentifier ?? app.path).inserted
+        }
+
+        return deduped
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
             .prefix(30)
             .map { app in
