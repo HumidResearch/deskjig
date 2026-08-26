@@ -51,6 +51,8 @@ OPTIONS:
                                   instead of inside DerivedData (lets CI cache
                                   checkouts and build products independently)
       --no-signing                Disable code signing (sets CODE_SIGNING_ALLOWED=NO)
+      --build-setting <KEY=VALUE> Pass an extra xcodebuild build-setting override
+                                  (repeatable; e.g. COMPILATION_CACHE_ENABLE_CACHING=YES)
       --log-file <path>           Write full test output to this file
   -h, --help                      Show this help message
 
@@ -93,6 +95,7 @@ let derivedDataPath: string | undefined;
 let clonedSourcePackagesPath: string | undefined;
 let disableSigning = false;
 let logFilePath: string | undefined;
+const extraBuildSettings: string[] = [];
 
 for (let i = 0; i < argv.length; i++) {
   const arg = argv[i];
@@ -148,6 +151,17 @@ for (let i = 0; i < argv.length; i++) {
 
   if (arg === "--no-signing") {
     disableSigning = true;
+    continue;
+  }
+
+  if (arg === "--build-setting") {
+    const nextArg = argv[i + 1];
+    if (!nextArg || !nextArg.includes("=")) {
+      console.error("Error: --build-setting requires a KEY=VALUE argument");
+      process.exit(1);
+    }
+    extraBuildSettings.push(nextArg);
+    i++;
     continue;
   }
 
@@ -251,7 +265,7 @@ if (clonedSourcePackagesPath) {
   args.push("-clonedSourcePackagesDirPath", clonedSourcePackagesPath);
 }
 
-const buildSettings: string[] = [];
+const buildSettings: string[] = [...extraBuildSettings];
 if (disableSigning) {
   buildSettings.push("CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO");
 }
