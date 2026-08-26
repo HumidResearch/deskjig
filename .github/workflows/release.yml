@@ -19,11 +19,11 @@ name: Release
 # Sparkle's downloader follows HTTP redirects, so republishing the asset on every
 # release keeps a single permanently valid feed URL with no extra hosting.
 #
-# JOB GRAPH — split so a flake reruns minutes, not the whole universal build
+# JOB GRAPH — split so a flake reruns minutes, not the whole release build
 # (`gh run rerun --failed` reuses the artifacts of the jobs that passed):
 #
 #   gate     (ubuntu)  seconds: version/tag/xcconfig/Sparkle-key/build-number gates
-#   build    (macOS)   universal build, deep re-sign, verify;
+#   build    (macOS)   arm64 release build, deep re-sign, verify;
 #                      artifacts: the ditto'd app zip + Sparkle's sign_update
 #   notarize (macOS)   both notarization rounds, DMG packaging, Gatekeeper;
 #                      artifact: the finished DMG
@@ -317,12 +317,12 @@ jobs:
           TEAM_ID: ${{ steps.signing.outputs.team_id }}
         run: |
           set -euo pipefail
-          # --universal: the runner is Apple silicon, so a default build would
-          # ship an arm64-only DMG and silently drop every Intel Mac.
+          # arm64-only on purpose (decided 2026-08-26): no Intel users exist,
+          # and dropping the x86_64 slice halves the compile.
           # --timestamp: notarization rejects signatures without a secure
           # timestamp. Hardened runtime is already YES on both the app and the
           # CLI targets, so it does not need forcing here.
-          bun run scripts/build-deskjig.ts --target app --release --universal \
+          bun run scripts/build-deskjig.ts --target app --release \
             --cloned-source-packages build/SourcePackages \
             CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" \
@@ -497,7 +497,7 @@ jobs:
   #
   # The two notarytool waits are wall-clock-bound with zero CPU and strictly
   # serial (the DMG must contain the already-stapled app). Isolating them means
-  # an Apple-side flake reruns ~2 minutes of work, not the universal build.
+  # an Apple-side flake reruns ~2 minutes of work, not the release build.
   # ---------------------------------------------------------------------------
   notarize:
     name: Notarize app, package and notarize DMG
