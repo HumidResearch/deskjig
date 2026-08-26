@@ -22,5 +22,5 @@
 //      "not newer" and no installed copy ever updates. The release workflow
 //      compares against the published appcast and fails if it did not grow.
 
-MARKETING_VERSION = 1.1.4
-CURRENT_PROJECT_VERSION = 7
+MARKETING_VERSION = 1.1.5
+CURRENT_PROJECT_VERSION = 8
