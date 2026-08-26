@@ -13,7 +13,7 @@ public struct GenericWindowRestorationConfig: Sendable {
     public let minimumSizeRatio: CGFloat
     public let verificationDelay: Duration
     public let verificationTolerance: CGFloat
-    /// Extra settle time after a cold-launched app reports `isFinishedLaunching` before the first
+    /// Extra settle time after a launching app reports `isFinishedLaunching` before the first
     /// AX positioning attempt. Positioning a window while the app is still in its launch-time
     /// layout pass can raise an uncaught layout exception inside the target app and crash it
     /// (observed with Apple Notes, deskjig#52).
@@ -67,6 +67,7 @@ public struct GenericWindowRestorationConfig: Sendable {
 
 public final class GenericWindowRestorationService: @unchecked Sendable {
     private let positioningService: WindowPositioningService
+    private let launchSettlePolicy = LaunchSettlePolicy()
 
     public init(positioningService: WindowPositioningService) {
         self.positioningService = positioningService
@@ -94,6 +95,24 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
                 "eligible": "\(selection.eligibleCount)",
                 "filteredSmall": "\(selection.filteredCount)"
             ], runId: taskContext.runId)
+
+            let isFinishedLaunching = NSRunningApplication.runningApplications(
+                withBundleIdentifier: bundleId
+            ).first?.isFinishedLaunching
+            if launchSettlePolicy.needsSettle(
+                launchedByThisRestore: false,
+                isFinishedLaunching: isFinishedLaunching
+            ) {
+                let deadline = ContinuousClock().now.advanced(by: config.launchWindowTimeout)
+                DeskJigLog.debug(.restorationTrace, "Launch settle before first positioning", fields: [
+                    "taskId": taskContext.taskId,
+                    "bundleId": bundleId,
+                    "settleMs": "\(durationMillis(config.launchSettleDelay))"
+                ], runId: taskContext.runId)
+                guard await awaitLaunchSettle(bundleId: bundleId, deadline: deadline, config: config) else {
+                    return false
+                }
+            }
 
             let positioned = await positionWindow(
                 snapshotWindow: existingWindow,
@@ -212,22 +231,21 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
         var attempt = 0
         var reopenAttempted = false
 
-        // For apps this restore just cold-launched, hold off the first AX positioning until the
-        // app reports isFinishedLaunching plus a short settle: an AX setFrame that lands during
-        // the launch-time layout pass can raise an uncaught layout exception in the target app
-        // and crash it (Apple Notes, deskjig#52). Bounded by the same overall deadline.
-        if settleAfterLaunch {
-            while clock.now < deadline {
-                let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
-                if app?.isFinishedLaunching == true { break }
-                guard await Task.sleepUnlessCancelled(for: config.launchPollInterval) else { return false }
-            }
+        let isFinishedLaunching = NSRunningApplication.runningApplications(
+            withBundleIdentifier: bundleId
+        ).first?.isFinishedLaunching
+        if launchSettlePolicy.needsSettle(
+            launchedByThisRestore: settleAfterLaunch,
+            isFinishedLaunching: isFinishedLaunching
+        ) {
             DeskJigLog.debug(.restorationTrace, "Launch settle before first positioning", fields: [
                 "taskId": taskContext.taskId,
                 "bundleId": bundleId,
                 "settleMs": "\(durationMillis(config.launchSettleDelay))"
             ], runId: taskContext.runId)
-            guard await Task.sleepUnlessCancelled(for: config.launchSettleDelay) else { return false }
+            guard await awaitLaunchSettle(bundleId: bundleId, deadline: deadline, config: config) else {
+                return false
+            }
         }
 
         // Track consecutive handle failures for the same window to avoid infinite retry loops
@@ -347,6 +365,23 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
             "success": "false"
         ], runId: taskContext.runId)
 
+        return false
+    }
+
+    private func awaitLaunchSettle(
+        bundleId: String,
+        deadline: ContinuousClock.Instant,
+        config: GenericWindowRestorationConfig
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        while clock.now < deadline {
+            let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first
+            if app?.isFinishedLaunching == true {
+                guard await Task.sleepUnlessCancelled(for: config.launchSettleDelay) else { return false }
+                return clock.now < deadline
+            }
+            guard await Task.sleepUnlessCancelled(for: config.launchPollInterval) else { return false }
+        }
         return false
     }
 
@@ -542,4 +577,3 @@ public final class GenericWindowRestorationService: @unchecked Sendable {
         return Int(secondsMs + attosMs)
     }
 }
-

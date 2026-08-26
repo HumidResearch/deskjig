@@ -23,6 +23,7 @@
         "DeskJigTests",
         "FluentLauncherTimeoutTests",
         "InlineScreenSelectionStateTests",
+        "LaunchSettlePolicyTests",
         "LoggingConfigurationVerboseSinkTests",
         "QuickSwitchViewModelTests/clampCompensationBoundedFallback()",
         "QuickSwitchViewModelTests/clampCompensationLeftNeighbor()",
